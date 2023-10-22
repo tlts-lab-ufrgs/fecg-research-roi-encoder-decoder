@@ -23,7 +23,8 @@ from models.unet_model import unet
 
 #%% Set model parameters
 
-INPUT_SHAPE = [256, 262144, 4] # length, channels (stacked version), depth
+INPUT_SHAPE = [512, 512, 4] # length, channels (stacked version), depth
+OUTPUT_CHANNELS = 512
 
 #%% Data Import
 
@@ -38,25 +39,26 @@ raw_data = file_info.get_data()
 
 #%% Preprocess data 
 
-data = np.zeros(shape=(256, 1024, 4))
+data = np.zeros(shape=(512, 512, 4))
 
 
 for i in range(1,4):
-    data[:, :, i-1] = np.split(raw_data[i][:262144], 256)[0]
+    data[:, :, i-1] = np.split(raw_data[i][:262144], 512)[0]
 
-abdominal_ecg = np.split(raw_data[0][:262144], 256)
+abdominal_ecg = np.split(raw_data[0][:262144], 512)
 
 
 #%% Unet 
 
-unet_model = unet(INPUT_SHAPE, 1)
+unet_model = unet(INPUT_SHAPE, OUTPUT_CHANNELS, 1)
 
+#%%
 tf.keras.utils.plot_model(unet_model, show_shapes=True)
 # %%
 
-unet_model.fit(
+history = unet_model.fit(
     data, 
     abdominal_ecg, 
-    batch_size=16, 
     epochs = 50
 )
+# %%

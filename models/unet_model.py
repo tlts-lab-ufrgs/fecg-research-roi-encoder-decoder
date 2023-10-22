@@ -15,9 +15,7 @@ import tensorflow as tf
 from tensorflow_examples.models.pix2pix import pix2pix
 
 
-def unet(INPUT_SHAPE, DEPTH):
-
-  OUTPUT_CHANNELS = 2
+def unet(INPUT_SHAPE, OUTPUT_CHANNELS, DEPTH):
       
   base_model = tf.keras.applications.MobileNetV2(input_shape=INPUT_SHAPE, weights=None, include_top=False)
 
@@ -48,7 +46,7 @@ def unet(INPUT_SHAPE, DEPTH):
 
     # Esta é a última camada do modelo
     last = tf.keras.layers.Conv2DTranspose(
-        output_channels, DEPTH, strides=2,
+        1, DEPTH, strides=2,
         padding='same', activation='softmax')  #64x64 -> 128x128
 
     inputs = tf.keras.layers.Input(shape=INPUT_SHAPE)
