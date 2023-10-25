@@ -17,7 +17,11 @@ from tensorflow_examples.models.pix2pix import pix2pix
 
 def unet(INPUT_SHAPE, OUTPUT_CHANNELS, DEPTH):
       
-  base_model = tf.keras.applications.MobileNetV2(input_shape=INPUT_SHAPE, weights=None, include_top=False)
+  base_model = tf.keras.applications.MobileNetV2(
+      input_shape=INPUT_SHAPE, 
+      weights=None, 
+      include_top=False
+      )
 
   # Use as ativações dessas camadas
   layer_names = [
@@ -30,9 +34,12 @@ def unet(INPUT_SHAPE, OUTPUT_CHANNELS, DEPTH):
   layers = [base_model.get_layer(name).output for name in layer_names]
 
   # Crie o modelo de extração de características
-  down_stack = tf.keras.Model(inputs=base_model.input, outputs=layers)
+  down_stack = tf.keras.Model(
+            inputs=base_model.input, 
+            outputs=layers
+            )
 
-  down_stack.trainable = False
+  down_stack.trainable = True
       
 
   up_stack = [
@@ -69,6 +76,7 @@ def unet(INPUT_SHAPE, OUTPUT_CHANNELS, DEPTH):
 
 
   model = unet_model(OUTPUT_CHANNELS)
+  model = down_stack
   model.compile(optimizer='adam', loss='sparse_categorical_crossentropy',
                 metrics=['accuracy'])
       
