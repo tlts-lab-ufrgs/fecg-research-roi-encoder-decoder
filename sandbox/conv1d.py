@@ -44,7 +44,7 @@ for file in FILENAMES:
     annotations = mne.read_annotations(file)
     time_annotations = annotations.onset
 
-    binary_mask = np.zeros(shape=file_info.times)
+    binary_mask = np.zeros(shape=file_info.times.shape)
 
     for step in time_annotations:
 
@@ -70,56 +70,57 @@ for file in FILENAMES:
 # The inputs are 128-length vectors with 10 timesteps, and the
 # batch size is 4.LEN_DATA
 input_shape = (32, LEN_DATA, CHANNELS)
-x = tf.random.normal(input_shape)
+
+
+x = tf.keras.Input(shape=input_shape)
 y_ = tf.keras.layers.Conv1D(64, 3, activation='relu',input_shape=input_shape[1:])(x)
-y = tf.keras.layers.Conv1D(64, 3, activation='relu')(y_)
+y = tf.keras.layers.Conv1D(64, 8, activation='relu')(y_)
 
 max_pool_1d = tf.keras.layers.MaxPooling1D(pool_size=3,
-   strides=1, padding='valid')(y)
+   strides=1)(y)
 
-y1_ = tf.keras.layers.Conv1D(32, 3, activation='relu')(max_pool_1d)
-y1 = tf.keras.layers.Conv1D(32, 3, activation='relu')(y1_)
+y1_ = tf.keras.layers.Conv1D(32, 16, activation='relu')(max_pool_1d)
+y1 = tf.keras.layers.Conv1D(32, 32, activation='relu')(y1_)
 
-max_pool_1d_2 = tf.keras.layers.MaxPooling1D(pool_size=3, strides=1, padding='valid')(y1)
+max_pool_1d_2 = tf.keras.layers.MaxPooling1D(pool_size=3, strides=1, padding='same')(y1)
 
-y2_ = tf.keras.layers.Conv1D(16, 3, activation='relu')(max_pool_1d_2)
-y2 = tf.keras.layers.Conv1D(16, 3, activation='relu')(y2_)
+y2_ = tf.keras.layers.Conv1D(16, 64, activation='relu')(max_pool_1d_2)
+y2 = tf.keras.layers.Conv1D(16, 64, activation='relu')(y2_)
 
-max_pool_1d_3 = tf.keras.layers.MaxPooling1D(pool_size=3, strides=1, padding='valid')(y2)
+max_pool_1d_3 = tf.keras.layers.MaxPooling1D(pool_size=3, strides=1, padding='same')(y2)
 
-y3_ = tf.keras.layers.Conv1D(8, 3, activation='relu')(max_pool_1d_3)
-y3 = tf.keras.layers.Conv1D(8, 3, activation='relu')(y3_)
+y3_ = tf.keras.layers.Conv1D(8, 64, activation='relu')(max_pool_1d_3)
+y3 = tf.keras.layers.Conv1D(8, 64, activation='relu')(y3_)
 
-max_pool_1d_4 = tf.keras.layers.MaxPooling1D(pool_size=3, strides=1, padding='valid')(y3)
+max_pool_1d_4 = tf.keras.layers.MaxPooling1D(pool_size=3, strides=1, padding='same')(y3)
 
-y4_ = tf.keras.layers.Conv1D(4, 3, activation='relu')(max_pool_1d_4)
-y4 = tf.keras.layers.Conv1D(4, 3, activation='relu')(y4_)
+y4_ = tf.keras.layers.Conv1D(4, 128, activation='relu')(max_pool_1d_4)
+y4 = tf.keras.layers.Conv1D(4, 128, activation='relu')(y4_)
 
-max_pool_1d_5 = tf.keras.layers.MaxPooling1D(pool_size=3, strides=1, padding='valid')(y4)
+max_pool_1d_5 = tf.keras.layers.MaxPooling1D(pool_size=3, strides=1, padding='same')(y4)
 
-x1 = tf.keras.layers.Conv1DTranspose(8, 2, activation='relu')(max_pool_1d_5)
-x2 = tf.keras.layers.Conv1DTranspose(16, 4, activation='relu')(x1)
-x3 = tf.keras.layers.Conv1DTranspose(32, 26, activation='relu')(x2)
-x5 = tf.keras.layers.Conv1DTranspose(1, 2, activation='relu')(x3)
+x1 = tf.keras.layers.Conv1DTranspose(8, 256, activation='relu')(max_pool_1d_5)
+x2 = tf.keras.layers.Conv1DTranspose(16, 128, activation='relu')(x1)
+x3 = tf.keras.layers.Conv1DTranspose(16, 128, activation='relu')(x2)
+x5 = tf.keras.layers.Conv1DTranspose(2, 63, activation='relu')(x3)
 # x4 = tf.keras.layers.Conv1DTranspose(64, 3, activation='relu')(x3)
 
-print(max_pool_1d_5.shape)
 print(x5.shape)
 
 #%%
 
 layers = [
     tf.keras.layers.Conv1D(64, 3, activation='relu',input_shape=input_shape[1:]),
-    tf.keras.layers.Conv1D(64, 3, activation='relu'),
+    tf.keras.layers.Conv1D(64, 6, activation='relu'),
     tf.keras.layers.MaxPooling1D(pool_size=3,
        strides=1, padding='valid'),
-    tf.keras.layers.Conv1D(32, 3, activation='relu'),
-    tf.keras.layers.Conv1D(32, 3, activation='relu'),
+    tf.keras.layers.Conv1D(32, 12, activation='relu'),
+    tf.keras.layers.Conv1D(32, 24, activation='relu'),
     tf.keras.layers.MaxPooling1D(pool_size=3, strides=1, padding='valid'),
-    tf.keras.layers.Conv1D(16, 3, activation='relu'),
-    tf.keras.layers.Conv1D(16, 3, activation='relu'),
+    tf.keras.layers.Conv1D(16, 48, activation='relu'),
+    tf.keras.layers.Conv1D(16, 48, activation='relu'),
     tf.keras.layers.MaxPooling1D(pool_size=3, strides=1, padding='valid'),
-    tf.keras.layers.Conv1D(8, 3, activation='relu'),
+    tf.keras.layers.Conv1D(8, 48, activation='relu'),
     tf.keras.layers.Conv1D(8, 3, activation='relu'),
     tf.keras.layers.MaxPooling1D(pool_size=3, strides=1, padding='valid'),
     tf.keras.layers.Conv1D(4, 3, activation='relu'),
@@ -134,12 +135,15 @@ layers = [
 #%%
 
 
-model = tf.keras.Sequential(layers)
+# model = tf.keras.Sequential(layers)
+
+tf.keras.Model(inputs=inputs, outputs=x5)
+
 
 
 #%% Training 
 
-model.compile(optimizer='adam', loss='mae', metrics=['accuracy'])
+model.compile(optimizer='adam', loss='mae', metrics=['mean_squared_error'])
 
 #%%
 
