@@ -3,6 +3,7 @@ import glob
 import numpy as np
 import tensorflow as tf
 
+
 #%% Read and re arange signal
 """
 # 1) Read and re-arange signal
@@ -29,19 +30,37 @@ FILENAMES = glob.glob(DATA_PATH + "*.edf")
 LEN_DATA = 600
 CHANNELS = 4
 
+QRS_DURATION = 0.1  # seconds, max
+QRS_DURATION_STEP = 100
+
 data_store = np.empty(shape=(EPOCHS, LEN_DATA, CHANNELS))
-fecg_store = np.empty(shape=(EPOCHS, LEN_DATA, 1))
+fecg_store = np.empty(shape=(EPOCHS, LEN_DATA, 2))
 
 for file in FILENAMES:
 
     file_info = mne.io.read_raw_edf(file)
     filedata = file_info.get_data()
 
+    annotations = mne.read_annotations(file)
+    time_annotations = annotations.onset
+
+    binary_mask = np.zeros(shape=file_info.times)
+
+    for step in time_annotations:
+
+        center_index = np.where(file_info.times == step)[0][0]
+
+        binary_mask[
+            center_index - QRS_DURATION_STEP :
+            center_index + QRS_DURATION_STEP 
+        ] = 1
+
     chuncked_data = np.array_split(filedata[1::], EPOCHS, axis = 1)
     chuncked_data = [partial_data.transpose() for partial_data in chuncked_data]
     
-    chuncked_fecg_data = np.array_split(filedata[0], EPOCHS)
-    chuncked_fecg_data = [partial_data.reshape(LEN_DATA, 1) for partial_data in chuncked_fecg_data]
+    chuncked_fecg_data = np.array_split(np.array([filedata[0], binary_mask]), EPOCHS, axis = 1)
+    chuncked_fecg_data = [partial_data.transpose() for partial_data in chuncked_fecg_data]    
+    # chuncked_fecg_data = [partial_data.reshape(LEN_DATA, 1) for partial_data in chuncked_fecg_data]
 
     data_store = np.vstack((data_store, chuncked_data))
     fecg_store = np.vstack((fecg_store, chuncked_fecg_data))
@@ -129,4 +148,3 @@ history = model.fit(data_store, fecg_store,
           batch_size=32,
           shuffle=True, 
     )
-
