@@ -3,6 +3,7 @@ import glob
 import numpy as np
 import tensorflow as tf
 
+import matplotlib.pyplot as plt
 
 #%% Read and re arange signal
 """
@@ -21,6 +22,11 @@ containing (5, TIME STEPS, 4 eletrodes)
 
 After this separate the signal in x Epochs with TIME_STEPS / x steps each, so we have
 (5 * x, TIME_STEPS / x, 4)
+
+
+#%%
+
+https://stackoverflow.com/questions/49290895/how-to-implement-a-1d-convolutional-auto-encoder-in-keras-for-vector-data
 """
 
 DATA_PATH = "/home/julia/Documentos/ufrgs/Mestrado/datasets - NI-fECG/abdominal-and-direct-fetal-ecg-database-1.0.0/"
@@ -33,10 +39,13 @@ CHANNELS = 4
 QRS_DURATION = 0.1  # seconds, max
 QRS_DURATION_STEP = 100
 
-data_store = np.empty(shape=(EPOCHS, LEN_DATA, CHANNELS))
-fecg_store = np.empty(shape=(EPOCHS, LEN_DATA, 2))
+data_store = np.empty(shape=(0, LEN_DATA, CHANNELS))
+fecg_store = np.empty(shape=(0, LEN_DATA, 2))
 
-for file in FILENAMES:
+
+#%%
+
+for file in FILENAMES[0:2]:
 
     file_info = mne.io.read_raw_edf(file)
     filedata = file_info.get_data()
@@ -55,15 +64,21 @@ for file in FILENAMES:
             center_index + QRS_DURATION_STEP 
         ] = 1
 
-    chuncked_data = np.array_split(filedata[1::], EPOCHS, axis = 1)
+    chuncked_data = np.array_split(filedata[1::] * 1e5, EPOCHS, axis = 1)
     chuncked_data = [partial_data.transpose() for partial_data in chuncked_data]
     
-    chuncked_fecg_data = np.array_split(np.array([filedata[0], binary_mask]), EPOCHS, axis = 1)
+    chuncked_fecg_data = np.array_split(np.array([filedata[0] * 1e5, binary_mask]), EPOCHS, axis = 1)
     chuncked_fecg_data = [partial_data.transpose() for partial_data in chuncked_fecg_data]    
     # chuncked_fecg_data = [partial_data.reshape(LEN_DATA, 1) for partial_data in chuncked_fecg_data]
 
     data_store = np.vstack((data_store, chuncked_data))
     fecg_store = np.vstack((fecg_store, chuncked_fecg_data))
+    
+#%%
+
+fig, ax = plt.subplots()
+
+ax.plot(data_store[5, , 1])
 
 # %% Compose the model
 
@@ -72,7 +87,7 @@ for file in FILENAMES:
 input_shape = (32, LEN_DATA, CHANNELS)
 
 
-x = tf.keras.Input(shape=input_shape)
+x = tf.keras.Input(batch_shape=input_shape)
 y_ = tf.keras.layers.Conv1D(64, 3, activation='relu',input_shape=input_shape[1:])(x)
 y = tf.keras.layers.Conv1D(64, 8, activation='relu')(y_)
 
@@ -102,7 +117,7 @@ max_pool_1d_5 = tf.keras.layers.MaxPooling1D(pool_size=3, strides=1, padding='sa
 x1 = tf.keras.layers.Conv1DTranspose(8, 256, activation='relu')(max_pool_1d_5)
 x2 = tf.keras.layers.Conv1DTranspose(16, 128, activation='relu')(x1)
 x3 = tf.keras.layers.Conv1DTranspose(16, 128, activation='relu')(x2)
-x5 = tf.keras.layers.Conv1DTranspose(2, 63, activation='relu')(x3)
+x5 = tf.keras.layers.Conv1DTranspose(2, 55, activation='relu')(x3)
 # x4 = tf.keras.layers.Conv1DTranspose(64, 3, activation='relu')(x3)
 
 print(x5.shape)
@@ -137,13 +152,17 @@ layers = [
 
 # model = tf.keras.Sequential(layers)
 
-tf.keras.Model(inputs=inputs, outputs=x5)
+model = tf.keras.Model(inputs=x, outputs=x5)
 
 
 
 #%% Training 
 
-model.compile(optimizer='adam', loss='mae', metrics=['mean_squared_error'])
+model.compile(optimizer=tf.keras.optimizers.Adam(
+    learning_rate=0.01)
+
+
+, loss='mse', metrics=['mean_squared_error'])
 
 #%%
 
@@ -152,3 +171,53 @@ history = model.fit(data_store, fecg_store,
           batch_size=32,
           shuffle=True, 
     )
+
+#%%
+
+test_data_store = np.empty(shape=(0, LEN_DATA, CHANNELS))
+test_fecg_store = np.empty(shape=(0, LEN_DATA, 2))
+
+# for file in FILENAMES[0:2]:
+
+file_info = mne.io.read_raw_edf(FILENAMES[-1])
+filedata = file_info.get_data()
+
+annotations = mne.read_annotations(FILENAMES[-1])
+time_annotations = annotations.onset
+
+binary_mask = np.zeros(shape=file_info.times.shape)
+
+for step in time_annotations:
+
+    center_index = np.where(file_info.times == step)[0][0]
+
+    binary_mask[
+        center_index - QRS_DURATION_STEP :
+        center_index + QRS_DURATION_STEP 
+    ] = 1
+
+chuncked_data = np.array_split(filedata[1::], EPOCHS, axis = 1)
+chuncked_data = [partial_data.transpose() for partial_data in chuncked_data]
+
+chuncked_fecg_data = np.array_split(np.array([filedata[0], binary_mask]), EPOCHS, axis = 1)
+chuncked_fecg_data = [partial_data.transpose() for partial_data in chuncked_fecg_data]    
+# chuncked_fecg_data = [partial_data.reshape(LEN_DATA, 1) for partial_data in chuncked_fecg_data]
+
+test_data_store = np.array(chuncked_data)
+test_fecg_store = np.array(chuncked_fecg_data)
+
+# data_store = filedata[1::]
+# test_fecg_data = np.array([filedata[0], binary_mask])
+#%%
+
+result = model.predict(test_data_store)
+
+#%%
+
+fig, ax = plt.subplots()
+
+# ax.plot(result[:, :, 1])
+
+ax1 = ax.twinx()
+
+ax1.plot(test_fecg_store[:, :, 1])
