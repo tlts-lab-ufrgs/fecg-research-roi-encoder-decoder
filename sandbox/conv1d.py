@@ -78,7 +78,7 @@ for file in FILENAMES[0:2]:
 
 fig, ax = plt.subplots()
 
-ax.plot(data_store[5, , 1])
+# ax.plot(data_store[5, , 1])
 
 # %% Compose the model
 
