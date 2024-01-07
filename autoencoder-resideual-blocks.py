@@ -21,7 +21,7 @@ import matplotlib.pyplot as plt
 
 #%% Parameters
 
-DATA_PATH = "/home/julia/Documentos/ufrgs/Mestrado/datasets - NI-fECG/abdominal-and-direct-fetal-ecg-database-1.0.0/"
+DATA_PATH = "/home/julia/Documents/fECG_research/datasets/abdominal-and-direct-fetal-ecg-database-1.0.0/"
 EPOCHS = 500
 FILENAMES = glob.glob(DATA_PATH + "*.edf")
 

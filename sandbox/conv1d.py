@@ -1,3 +1,5 @@
+#%%
+# 
 import mne
 import glob
 import numpy as np
@@ -24,12 +26,12 @@ After this separate the signal in x Epochs with TIME_STEPS / x steps each, so we
 (5 * x, TIME_STEPS / x, 4)
 
 
-#%%
-
 https://stackoverflow.com/questions/49290895/how-to-implement-a-1d-convolutional-auto-encoder-in-keras-for-vector-data
 """
 
-DATA_PATH = "/home/julia/Documentos/ufrgs/Mestrado/datasets - NI-fECG/abdominal-and-direct-fetal-ecg-database-1.0.0/"
+#%%
+
+DATA_PATH = "/home/julia/Documents/fECG_research/datasets/abdominal-and-direct-fetal-ecg-database-1.0.0/"
 EPOCHS = 500
 FILENAMES = glob.glob(DATA_PATH + "*.edf")
 
@@ -45,7 +47,7 @@ fecg_store = np.empty(shape=(0, LEN_DATA, 2))
 
 #%%
 
-for file in FILENAMES[0:2]:
+for file in FILENAMES[0:-1]:
 
     file_info = mne.io.read_raw_edf(file)
     filedata = file_info.get_data()
@@ -78,7 +80,7 @@ for file in FILENAMES[0:2]:
 
 fig, ax = plt.subplots()
 
-# ax.plot(data_store[5, , 1])
+ax.plot(data_store[5, 1])
 
 # %% Compose the model
 
@@ -122,30 +124,6 @@ x5 = tf.keras.layers.Conv1DTranspose(2, 55, activation='relu')(x3)
 
 print(x5.shape)
 
-#%%
-
-layers = [
-    tf.keras.layers.Conv1D(64, 3, activation='relu',input_shape=input_shape[1:]),
-    tf.keras.layers.Conv1D(64, 6, activation='relu'),
-    tf.keras.layers.MaxPooling1D(pool_size=3,
-       strides=1, padding='valid'),
-    tf.keras.layers.Conv1D(32, 12, activation='relu'),
-    tf.keras.layers.Conv1D(32, 24, activation='relu'),
-    tf.keras.layers.MaxPooling1D(pool_size=3, strides=1, padding='valid'),
-    tf.keras.layers.Conv1D(16, 48, activation='relu'),
-    tf.keras.layers.Conv1D(16, 48, activation='relu'),
-    tf.keras.layers.MaxPooling1D(pool_size=3, strides=1, padding='valid'),
-    tf.keras.layers.Conv1D(8, 48, activation='relu'),
-    tf.keras.layers.Conv1D(8, 3, activation='relu'),
-    tf.keras.layers.MaxPooling1D(pool_size=3, strides=1, padding='valid'),
-    tf.keras.layers.Conv1D(4, 3, activation='relu'),
-    tf.keras.layers.Conv1D(4, 3, activation='relu'),
-    tf.keras.layers.MaxPooling1D(pool_size=3, strides=1, padding='valid'),
-    tf.keras.layers.Conv1DTranspose(8, 2, activation='relu'),
-    tf.keras.layers.Conv1DTranspose(16, 4, activation='relu'),
-    tf.keras.layers.Conv1DTranspose(32, 26, activation='relu'),
-    tf.keras.layers.Conv1DTranspose(1, 2, activation='relu')
-    ]
 
 #%%
 
@@ -158,18 +136,19 @@ model = tf.keras.Model(inputs=x, outputs=x5)
 
 #%% Training 
 
-model.compile(optimizer=tf.keras.optimizers.Adam(
-    learning_rate=0.01)
-
-
-, loss='mse', metrics=['mean_squared_error'])
+model.compile(
+    optimizer=tf.keras.optimizers.Adam(learning_rate=0.01), 
+    loss='mse', metrics=['mean_squared_error']
+)
 
 #%%
 
-history = model.fit(data_store, fecg_store, 
-          epochs=20, 
-          batch_size=32,
-          shuffle=True, 
+history = model.fit(
+            data_store, 
+            fecg_store, 
+            epochs=20, 
+            batch_size=32,
+            shuffle=True, 
     )
 
 #%%
