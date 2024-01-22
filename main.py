@@ -34,9 +34,9 @@ BATCH_SIZE = 32
 QRS_DURATION = 0.1  # seconds, max
 QRS_DURATION_STEP = 100
 
-data_store = np.empty(shape=(EPOCHS, LEN_DATA, CHANNELS))
-fecg_store = np.empty(shape=(EPOCHS, LEN_DATA, 2))
-
+# data_store = np.empty(shape=[]) # shape=(EPOCHS, LEN_DATA, CHANNELS)
+# fecg_store = np.empty(shape=[]) # shape=(EPOCHS, LEN_DATA, 2)
+ 
 #%% Data Loading 
 
 
@@ -48,26 +48,45 @@ for file in FILENAMES[0:2]:
     annotations = mne.read_annotations(file)
     time_annotations = annotations.onset
 
+
+    # Generates Binary masks
+
     binary_mask = np.zeros(shape=file_info.times.shape)
 
     for step in time_annotations:
 
         center_index = np.where(file_info.times == step)[0][0]
 
-        binary_mask[
-            center_index - QRS_DURATION_STEP :
-            center_index + QRS_DURATION_STEP 
-        ] = 1
+        qrs_region = np.where(
+            (file_info.times >= (step - QRS_DURATION_STEP)) &
+            (file_info.times <= (step + QRS_DURATION_STEP))
+        )[0]
 
-    chunked_data = np.array_split(filedata[1::] * 1e5, EPOCHS, axis = 1)
-    chunked_data = [partial_data.transpose() for partial_data in chunked_data]
-    
-    chunked_fecg_data = np.array_split(np.array([filedata[0] * 1e5, binary_mask]), EPOCHS, axis = 1)
-    chunked_fecg_data = [partial_data.transpose() for partial_data in chunked_fecg_data]    
-    # chuncked_fecg_data = [partial_data.reshape(LEN_DATA, 1) for partial_data in chuncked_fecg_data]
+        binary_mask[qrs_region] = 1
 
-    data_store = np.vstack((data_store, chunked_data))
-    fecg_store = np.vstack((fecg_store, chunked_fecg_data))
+
+    for batch in range(0, np.shape(filedata)[1], LEN_DATA):
+
+
+        chunked_data = filedata[1::, (batch): ((batch + LEN_DATA))].transpose() * 1e5
+        
+        chunked_fecg_real_data = filedata[0, (batch): (batch + LEN_DATA)] * 1e5
+        chunked_fecg_binary_data = binary_mask[(batch): (batch + LEN_DATA)]
+
+        chunked_fecg_data = np.array([
+            chunked_fecg_real_data, 
+            chunked_fecg_binary_data
+        ]).transpose()
+
+
+        if batch == 0:
+
+            data_store = np.copy([chunked_data])
+            fecg_store = np.copy([chunked_fecg_data])
+
+        else:
+            data_store = np.vstack((data_store, [chunked_data]))
+            fecg_store = np.vstack((fecg_store, [chunked_fecg_data]))
     
 
 #%% Data Preprocessing
@@ -84,15 +103,22 @@ model = linknet(input_shape, num_classes=1)
 
 # %%
 
-model.compile(optimizer='adam', loss=mse_with_mask, metrics=mse_with_mask)
+# model.compile(optimizer='adam', loss=mse_with_mask, metrics=mse_with_mask)
+
+model.compile(optimizer='adam', loss=tf.keras.losses.MSE, metrics=['mean_squared_error'])
+
+
 
 
 #%%
 
 history = model.fit(data_store, fecg_store, 
-          epochs=20, 
-          batch_size=32,
+          epochs=30, 
+          batch_size=BATCH_SIZE,
           shuffle=True, 
     )
 
+# %%
+
+teste = model.predict(data_store, 32)
 # %%
