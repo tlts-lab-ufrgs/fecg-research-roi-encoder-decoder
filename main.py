@@ -105,7 +105,10 @@ model = linknet(input_shape, num_classes=1)
 
 # model.compile(optimizer='adam', loss=mse_with_mask, metrics=mse_with_mask)
 
-model.compile(optimizer='adam', loss=tf.keras.losses.MSE, metrics=['mean_squared_error'])
+model.compile(
+    optimizer=tf.keras.optimizers.Adam(learning_rate=0.01), 
+    loss=tf.keras.losses.MSE, 
+    metrics=['mean_squared_error'])
 
 
 
