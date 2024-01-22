@@ -58,8 +58,8 @@ for file in FILENAMES[0:2]:
         center_index = np.where(file_info.times == step)[0][0]
 
         qrs_region = np.where(
-            (file_info.times >= (step - QRS_DURATION_STEP)) &
-            (file_info.times <= (step + QRS_DURATION_STEP))
+            (file_info.times >= (step - QRS_DURATION)) &
+            (file_info.times <= (step + QRS_DURATION))
         )[0]
 
         binary_mask[qrs_region] = 1
@@ -120,5 +120,57 @@ history = model.fit(data_store, fecg_store,
 
 # %%
 
-teste = model.predict(data_store, 32)
+
+
+for file in FILENAMES[3:4]:
+
+    file_info = mne.io.read_raw_edf(file)
+    filedata = file_info.get_data()
+
+    annotations = mne.read_annotations(file)
+    time_annotations = annotations.onset
+
+
+    # Generates Binary masks
+
+    binary_mask = np.zeros(shape=file_info.times.shape)
+
+    for step in time_annotations:
+
+        center_index = np.where(file_info.times == step)[0][0]
+
+        qrs_region = np.where(
+            (file_info.times >= (step - QRS_DURATION)) &
+            (file_info.times <= (step + QRS_DURATION))
+        )[0]
+
+        binary_mask[qrs_region] = 1
+
+
+    for batch in range(0, np.shape(filedata)[1], LEN_DATA):
+
+
+        chunked_data = filedata[1::, (batch): ((batch + LEN_DATA))].transpose() * 1e5
+        
+        chunked_fecg_real_data = filedata[0, (batch): (batch + LEN_DATA)] * 1e5
+        chunked_fecg_binary_data = binary_mask[(batch): (batch + LEN_DATA)]
+
+        chunked_fecg_data = np.array([
+            chunked_fecg_real_data, 
+            chunked_fecg_binary_data
+        ]).transpose()
+
+
+        if batch == 0:
+
+            data_store_test = np.copy([chunked_data])
+            fecg_store_test = np.copy([chunked_fecg_data])
+
+        else:
+            data_store_test = np.vstack((data_store_test, [chunked_data]))
+            fecg_store_test = np.vstack((fecg_store_test, [chunked_fecg_data]))
+    
+
+
+teste = model.predict(data_store_test, 32)
 # %%
