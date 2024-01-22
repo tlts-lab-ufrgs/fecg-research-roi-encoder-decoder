@@ -35,7 +35,7 @@ BATCH_SIZE = 32
 QRS_DURATION = 0.1  # seconds, max
 QRS_DURATION_STEP = 100
 
-INIT_LR = 0.05
+INIT_LR = 0.1
 
 # data_store = np.empty(shape=[]) # shape=(EPOCHS, LEN_DATA, CHANNELS)
 # fecg_store = np.empty(shape=[]) # shape=(EPOCHS, LEN_DATA, 2)
@@ -47,6 +47,10 @@ for file in FILENAMES[0:2]:
 
     file_info = mne.io.read_raw_edf(file)
     filedata = file_info.get_data()
+    
+    max_absolute_value = np.max(np.abs(filedata[1::]))
+    
+    filedata *= 1 / max_absolute_value
 
     annotations = mne.read_annotations(file)
     time_annotations = annotations.onset
@@ -71,9 +75,9 @@ for file in FILENAMES[0:2]:
     for batch in range(0, np.shape(filedata)[1], LEN_DATA):
 
 
-        chunked_data = filedata[1::, (batch): ((batch + LEN_DATA))].transpose() * 1e5
+        chunked_data = filedata[1::, (batch): ((batch + LEN_DATA))].transpose()
         
-        chunked_fecg_real_data = filedata[0, (batch): (batch + LEN_DATA)] * 1e5
+        chunked_fecg_real_data = filedata[0, (batch): (batch + LEN_DATA)]
         chunked_fecg_binary_data = binary_mask[(batch): (batch + LEN_DATA)]
 
         chunked_fecg_data = np.array([
