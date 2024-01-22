@@ -16,12 +16,13 @@ import tensorflow.keras.layers as Layers
 
 from models.linknet import linknet
 from losses.mse_with_mask import mse_with_mask
+from utils.lr_scheduler import callback
 
 #%% Parameters
 
-# DATA_PATH = "/home/julia/Documents/fECG_research/datasets/abdominal-and-direct-fetal-ecg-database-1.0.0/"
+DATA_PATH = "/home/julia/Documents/fECG_research/datasets/abdominal-and-direct-fetal-ecg-database-1.0.0/"
 
-DATA_PATH = "/home/julia/Documentos/ufrgs/Mestrado/datasets - NI-fECG/abdominal-and-direct-fetal-ecg-database-1.0.0/"
+# DATA_PATH = "/home/julia/Documentos/ufrgs/Mestrado/datasets - NI-fECG/abdominal-and-direct-fetal-ecg-database-1.0.0/"
 
 EPOCHS = 500
 FILENAMES = glob.glob(DATA_PATH + "*.edf")
@@ -33,6 +34,8 @@ BATCH_SIZE = 32
 
 QRS_DURATION = 0.1  # seconds, max
 QRS_DURATION_STEP = 100
+
+INIT_LR = 0.05
 
 # data_store = np.empty(shape=[]) # shape=(EPOCHS, LEN_DATA, CHANNELS)
 # fecg_store = np.empty(shape=[]) # shape=(EPOCHS, LEN_DATA, 2)
@@ -106,11 +109,9 @@ model = linknet(input_shape, num_classes=1)
 # model.compile(optimizer='adam', loss=mse_with_mask, metrics=mse_with_mask)
 
 model.compile(
-    optimizer=tf.keras.optimizers.Adam(learning_rate=0.01), 
-    loss=tf.keras.losses.MSE, 
+    optimizer=tf.keras.optimizers.Adam(learning_rate=INIT_LR), 
+    loss=mse_with_mask, #tf.keras.losses.MSE, 
     metrics=['mean_squared_error'])
-
-
 
 
 #%%
@@ -119,6 +120,7 @@ history = model.fit(data_store, fecg_store,
           epochs=30, 
           batch_size=BATCH_SIZE,
           shuffle=True, 
+          callbacks=[callback],
     )
 
 # %%
@@ -175,5 +177,5 @@ for file in FILENAMES[3:4]:
     
 
 
-teste = model.predict(data_store_test, 32)
+teste = model.predict(data_store, 32)
 # %%
