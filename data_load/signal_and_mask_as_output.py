@@ -66,7 +66,7 @@ def load_data(len_data = LEN_DATA, path = DATA_PATH, qrs_duration = QRS_DURATION
 
             chunked_fecg_data = np.array([
                 chunked_fecg_real_data, 
-                chunked_fecg_binary_data
+                # chunked_fecg_binary_data
             ]).transpose()
 
 

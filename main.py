@@ -87,6 +87,16 @@ history = model.fit(data_store, fecg_store,
           callbacks=[callback],
     )
 
+#%%
+
+fig, ax = plt.subplots()
+
+ax.plot(history.history['loss'], label='Training Loss')
+
+ax.plot(history.history['val_loss'], label='Validation Loss')
+
+ax.legend()
+
 # %%
 
 

@@ -67,12 +67,12 @@ def linknet(input_shape=(256, 1), num_classes=21):  # Adjust input_shape and num
 
     # Final classification layer
     # x= bottleneck
-    x = conv_block(decoder, num_filters=2, kernel_size=1, stride=1)
+    outputs = conv_block(decoder, num_filters=2, kernel_size=1, stride=1)
 
     # Output
-    outputs = Activation('softmax')(x)
+    # outputs = Activation('softmax')(x)
 
-    print('Output form', np.shape(x))
+    print('Output form', np.shape(outputs))
 
     model = tf.keras.Model(inputs=inputs, outputs=outputs, name='linknet')
     return model
