@@ -34,7 +34,11 @@ def load_data(len_data = LEN_DATA, path = DATA_PATH, qrs_duration = QRS_DURATION
         
         filedata *= 1E5
         
+        filedata += np.abs(np.min(filedata[1])) # to zero things
+        
         max_absolute_value = np.max(np.abs(filedata[1]))
+        
+        
         
         filedata *= (1 / max_absolute_value)
 

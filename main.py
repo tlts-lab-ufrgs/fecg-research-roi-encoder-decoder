@@ -37,7 +37,7 @@ BATCH_SIZE = 32
 QRS_DURATION = 0.1  # seconds, max
 QRS_DURATION_STEP = 100
 
-INIT_LR = 0.001
+INIT_LR = 0.0025
  
 #%% Data Loading 
 
@@ -81,11 +81,11 @@ model.compile(
 #%%
 
 history = model.fit(data_store, fecg_store, 
-          epochs=10, 
+          epochs=100, 
           batch_size=BATCH_SIZE,
-          validation_split=0.2,
+          validation_split=0.3,
           shuffle=True, 
-          callbacks=[callback, patience_callback('loss', 15)],
+          callbacks=[callback, patience_callback('loss', 10)],
     )
 
 #%%
@@ -111,11 +111,11 @@ predict = model.predict(data_store)
 
 fig, ax = plt.subplots()
 
-ax.plot(fecg_store[3, :])
+ax.plot(fecg_store[15, :])
 
 # ax.plot(predict[1, :], color='orange')
 
-ax.plot(predict[3, :], color='green')
+ax.plot(predict[15, :], color='green')
 
 2# %%
 
