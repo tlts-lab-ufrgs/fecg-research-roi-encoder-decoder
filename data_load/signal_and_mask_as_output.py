@@ -32,12 +32,15 @@ def load_data(len_data = LEN_DATA, path = DATA_PATH, qrs_duration = QRS_DURATION
         file_info = mne.io.read_raw_edf(file)
         filedata = file_info.get_data()
         
-        max_absolute_value = np.max(np.abs(filedata[1::]))
+        filedata *= 1E5
         
-        filedata *= 1 / max_absolute_value
+        max_absolute_value = np.max(np.abs(filedata[1]))
+        
+        filedata *= (1 / max_absolute_value)
 
         annotations = mne.read_annotations(file)
         time_annotations = annotations.onset
+        
 
 
         # Generates Binary masks
@@ -59,16 +62,18 @@ def load_data(len_data = LEN_DATA, path = DATA_PATH, qrs_duration = QRS_DURATION
         for batch in range(0, np.shape(filedata)[1], len_data):
 
 
-            chunked_data = filedata[1::, (batch): ((batch + len_data))].transpose()
+            chunked_data = filedata[1, (batch): ((batch + len_data))].transpose()
             
             chunked_fecg_real_data = filedata[0, (batch): (batch + len_data)]
             chunked_fecg_binary_data = binary_mask[(batch): (batch + len_data)]
 
-            chunked_fecg_data = np.array([
-                chunked_fecg_real_data, 
-                # chunked_fecg_binary_data
-            ]).transpose()
-
+            # chunked_fecg_data = np.array([
+            #     chunked_fecg_real_data, 
+            #     # chunked_fecg_binary_data
+            # ]).transpose()
+            
+            # chunked_fecg_data *= 1 / np.max(chunked_fecg_data)
+            chunked_fecg_data = np.copy(chunked_data)
 
             if batch == 0:
 

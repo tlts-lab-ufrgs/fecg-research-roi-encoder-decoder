@@ -2,75 +2,102 @@
 
 import numpy as np
 import tensorflow as tf
-from tensorflow.keras.layers import Input, Conv1D, BatchNormalization, Activation, MaxPooling1D, Conv1DTranspose, Concatenate
+from tensorflow.keras.layers import (
+    Input, 
+    Conv1D, 
+    BatchNormalization, 
+    Activation, 
+    MaxPooling1D, 
+    Add, 
+    Conv1DTranspose, 
+    UpSampling1D, 
+    Reshape
+)
 
-def conv_block(inputs, num_filters, kernel_size=3, stride=1):
-    x = Conv1D(num_filters, kernel_size, strides=stride, padding='same')(inputs)
+def downsampling(inputs, num_filters, stride):
+    
+    x = Conv1D(num_filters, kernel_size=1, strides=stride, padding='same')(inputs)
+    x = BatchNormalization()(x)
+    
+    return x
+
+def conv_block(inputs, num_filters, kernel_size=3, stride=1, padding='same'):
+    x = Conv1D(num_filters, kernel_size, strides=stride, padding=padding)(inputs)
     x = BatchNormalization()(x)
     x = Activation('relu')(x)
     return x
 
 def linknet_block(inputs, num_filters):
-    x = conv_block(inputs, num_filters)
-    x = conv_block(x, num_filters)
+    x1 = conv_block(inputs, num_filters, stride=2)
+    x1 = conv_block(x1, num_filters)
+ 
+    reshaped_inputs = downsampling(inputs, num_filters, stride=2)
+    
+    print('Reshaped inputs', np.shape(reshaped_inputs))
+    
+    x = Add()([x1, reshaped_inputs])
+    
+    x2 = conv_block(x, num_filters)
+    x2 = conv_block(x2, num_filters)
+    
+    x = Add()([x1, x2])
     return x
 
-def decoder_block(inputs, skip_connection, filters_num):
+def decoder_block(inputs, skip_connection, filters_num, kernel_size=3, stride=2, output_padding=0):
 
     print('Decoder input', np.shape(inputs))
-    print('Decoder skip connection', np.shape(skip_connection))
-
-    mul_number = np.shape(skip_connection)[1] - np.shape(inputs)[1] + 1
-
-    x = Conv1DTranspose(filters_num, mul_number, activation="relu")(inputs)
-
+    
+    x = conv_block(inputs, num_filters=filters_num, kernel_size=2, padding='valid')
+    # ((timesteps - 1) * strides + kernel_size - 2 * padding + output_padding)
+    x = Conv1DTranspose(
+        filters_num, 
+        kernel_size=kernel_size, 
+        activation="relu", 
+        strides=stride, 
+        output_padding=output_padding
+    )(x)
+    x = conv_block(x, num_filters=filters_num, kernel_size=1, padding='valid')
+    
+    x = Add()([x, skip_connection])
+    
     print('x signals', np.shape(x))
 
-    x = Concatenate()([x, skip_connection])
-    x = conv_block(x, num_filters=filters_num)  # Adjust the number of filters based on your needs
     return x
+
+
+
 
 def linknet(input_shape=(256, 1), num_classes=21):  # Adjust input_shape and num_classes as needed
     inputs = Input(batch_shape=input_shape)
 
     # Encoder
     encoder_block1 = linknet_block(inputs, num_filters=64)
-    encoder_pool1 = MaxPooling1D(pool_size=2)(encoder_block1)
-
     print('Encoder Block 1', np.shape(encoder_block1))
 
-    encoder_block2 = linknet_block(encoder_pool1, num_filters=128)
-    encoder_pool2 = MaxPooling1D(pool_size=2)(encoder_block2)
-
+    encoder_block2 = linknet_block(encoder_block1, num_filters=128)
     print('Encoder Block 2', np.shape(encoder_block2))
 
-    encoder_block3 = linknet_block(encoder_pool2, num_filters=256)
-    encoder_pool3 = MaxPooling1D(pool_size=2)(encoder_block3)
-
+    encoder_block3 = linknet_block(encoder_block2, num_filters=256)
     print('Encoder Block 3', np.shape(encoder_block3))
 
-    encoder_block4 = linknet_block(encoder_pool3, num_filters=512)
-    encoder_pool4 = MaxPooling1D(pool_size=2)(encoder_block4)
-
+    encoder_block4 = linknet_block(encoder_block3, num_filters=512)
     print('Encoder Block 4', np.shape(encoder_block4))
 
-    # Bottleneck
-    bottleneck = linknet_block(encoder_pool4, num_filters=1024)
-
+    bottleneck = linknet_block(encoder_block4, num_filters=1024)
     print('Bottle neck', np.shape(bottleneck))
 
     # # Decoder
-    decoder = decoder_block(bottleneck, encoder_block4, 512)
+    decoder = decoder_block(bottleneck, encoder_block4, 512, kernel_size=4)
     decoder = decoder_block(decoder, encoder_block3, 256)
-    decoder = decoder_block(decoder, encoder_block2, 128)
-    decoder = decoder_block(decoder, encoder_block1, 64)
+    decoder = decoder_block(decoder, encoder_block2, 128, kernel_size=4)
+    decoder = decoder_block(decoder, encoder_block1, 64, kernel_size=4)
 
-    # Final classification layer
-    # x= bottleneck
-    outputs = conv_block(decoder, num_filters=2, kernel_size=1, stride=1)
+    # Last upsampling
+    x = UpSampling1D(2)(decoder)
+    x = conv_block(x, num_filters=1, kernel_size=1, stride=1)
 
     # Output
-    # outputs = Activation('softmax')(x)
+    outputs = Activation('relu')(x)
 
     print('Output form', np.shape(outputs))
 
