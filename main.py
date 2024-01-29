@@ -26,18 +26,20 @@ DATA_PATH = "/home/julia/Documents/fECG_research/datasets/abdominal-and-direct-f
 
 # DATA_PATH = "/home/julia/Documentos/ufrgs/Mestrado/datasets - NI-fECG/abdominal-and-direct-fetal-ecg-database-1.0.0/"
 
-EPOCHS = 500
+EPOCHS = 512
 FILENAMES = glob.glob(DATA_PATH + "*.edf")
 
-LEN_DATA = 600
+LEN_DATA = 512
 CHANNELS = 4
 
-BATCH_SIZE = 32
+BATCH_SIZE = 4
+
+DATA_BATCH = 4
 
 QRS_DURATION = 0.1  # seconds, max
 QRS_DURATION_STEP = 100
 
-INIT_LR = 0.0025
+INIT_LR = 0.005
  
 #%% Data Loading 
 
@@ -49,14 +51,20 @@ data_store, fecg_store = signal_and_mask_as_output.load_data(
     len_data = LEN_DATA, path = DATA_PATH, qrs_duration = QRS_DURATION
 )
 
-#%% Data Preprocessing
+#%%
+
+plt.plot(data_store[1])
+
+plt.plot(fecg_store[1])
+
+#% Data Preprocessing
 
 # filter high and low frquency noise
 
 
 #%% Model
     
-input_shape = (BATCH_SIZE, LEN_DATA, 1)
+input_shape = (DATA_BATCH, LEN_DATA, 1)
 
 model = linknet(input_shape, num_classes=1)
 
@@ -73,9 +81,13 @@ model = linknet(input_shape, num_classes=1)
 
 model.compile(
     optimizer=tf.keras.optimizers.Adam(learning_rate=INIT_LR), 
-    loss=tf.keras.losses.MSE, #mse_with_mask, # 
-    metrics=['mean_squared_error']
+    loss=tf.keras.losses.MAE, #mse_with_mask, # 
+    metrics=[
+        tf.keras.metrics.RootMeanSquaredError(name='rmse'), 
+        'mean_squared_error'
+    ]
     )
+
 
 
 #%%
@@ -85,7 +97,10 @@ history = model.fit(data_store, fecg_store,
           batch_size=BATCH_SIZE,
           validation_split=0.3,
           shuffle=True, 
-          callbacks=[callback, patience_callback('loss', 10)],
+          callbacks=[
+            callback,
+            patience_callback('loss', 15)
+        ],
     )
 
 #%%
@@ -111,12 +126,15 @@ predict = model.predict(data_store)
 
 fig, ax = plt.subplots()
 
-ax.plot(fecg_store[15, :])
 
 # ax.plot(predict[1, :], color='orange')
 
-ax.plot(predict[15, :], color='green')
+ax.plot(data_store[200], alpha = 0.5)
+ax.plot(predict[200], color='green', label='predito')
 
+ax.plot(fecg_store[200], label='real')
+
+ax.legend()
 2# %%
 
 # %%

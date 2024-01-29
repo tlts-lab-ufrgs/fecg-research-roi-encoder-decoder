@@ -63,11 +63,13 @@ def load_data(len_data = LEN_DATA, path = DATA_PATH, qrs_duration = QRS_DURATION
             binary_mask[qrs_region] = 1
 
 
-        for batch in range(0, np.shape(filedata)[1], len_data):
+        for batch in range(0, 262144, len_data):
 
 
             chunked_data = filedata[1, (batch): ((batch + len_data))].transpose()
             
+            chunked_data_with_noise = chunked_data + 0.01 * np.random.normal(0,1,len_data)    
+                  
             chunked_fecg_real_data = filedata[0, (batch): (batch + len_data)]
             chunked_fecg_binary_data = binary_mask[(batch): (batch + len_data)]
 
@@ -81,11 +83,11 @@ def load_data(len_data = LEN_DATA, path = DATA_PATH, qrs_duration = QRS_DURATION
 
             if batch == 0:
 
-                data_store = np.copy([chunked_data])
+                data_store = np.copy([chunked_data_with_noise])
                 fecg_store = np.copy([chunked_fecg_data])
 
             else:
-                data_store = np.vstack((data_store, [chunked_data]))
+                data_store = np.vstack((data_store, [chunked_data_with_noise]))
                 fecg_store = np.vstack((fecg_store, [chunked_fecg_data]))
     
     

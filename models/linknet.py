@@ -23,7 +23,7 @@ def downsampling(inputs, num_filters, stride):
 
 def conv_block(inputs, num_filters, kernel_size=3, stride=1, padding='same'):
     x = Conv1D(num_filters, kernel_size, strides=stride, padding=padding)(inputs)
-    x = BatchNormalization()(x)
+    # x = BatchNormalization()(x)
     x = Activation('relu')(x)
     return x
 
@@ -88,7 +88,7 @@ def linknet(input_shape=(256, 1), num_classes=21):  # Adjust input_shape and num
 
     # # Decoder
     decoder = decoder_block(bottleneck, encoder_block4, 512, kernel_size=4)
-    decoder = decoder_block(decoder, encoder_block3, 256)
+    decoder = decoder_block(decoder, encoder_block3, 256, kernel_size=4)
     decoder = decoder_block(decoder, encoder_block2, 128, kernel_size=4)
     decoder = decoder_block(decoder, encoder_block1, 64, kernel_size=4)
 
