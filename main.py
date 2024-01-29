@@ -39,7 +39,7 @@ DATA_BATCH = 4
 QRS_DURATION = 0.1  # seconds, max
 QRS_DURATION_STEP = 100
 
-INIT_LR = 0.005
+INIT_LR = 0.01
  
 #%% Data Loading 
 
@@ -53,9 +53,9 @@ data_store, fecg_store = signal_and_mask_as_output.load_data(
 
 #%%
 
-plt.plot(data_store[1])
+plt.plot(data_store[10])
 
-plt.plot(fecg_store[1])
+plt.plot(fecg_store[10])
 
 #% Data Preprocessing
 
@@ -64,7 +64,7 @@ plt.plot(fecg_store[1])
 
 #%% Model
     
-input_shape = (DATA_BATCH, LEN_DATA, 1)
+input_shape = (DATA_BATCH, LEN_DATA, CHANNELS)
 
 model = linknet(input_shape, num_classes=1)
 
@@ -81,7 +81,7 @@ model = linknet(input_shape, num_classes=1)
 
 model.compile(
     optimizer=tf.keras.optimizers.Adam(learning_rate=INIT_LR), 
-    loss=tf.keras.losses.MAE, #mse_with_mask, # 
+    loss=mse_with_mask, # 
     metrics=[
         tf.keras.metrics.RootMeanSquaredError(name='rmse'), 
         'mean_squared_error'
@@ -129,10 +129,10 @@ fig, ax = plt.subplots()
 
 # ax.plot(predict[1, :], color='orange')
 
-ax.plot(data_store[200], alpha = 0.5)
-ax.plot(predict[200], color='green', label='predito')
+# ax.plot(data_store[200], alpha = 0.5)
+ax.plot(predict[5], label='predito')
 
-ax.plot(fecg_store[200], label='real')
+ax.plot(fecg_store[5], label='real')
 
 ax.legend()
 2# %%

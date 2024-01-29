@@ -94,7 +94,7 @@ def linknet(input_shape=(256, 1), num_classes=21):  # Adjust input_shape and num
 
     # Last upsampling
     x = UpSampling1D(2)(decoder)
-    x = conv_block(x, num_filters=1, kernel_size=1, stride=1)
+    x = conv_block(x, num_filters=2, kernel_size=1, stride=1)
 
     # Output
     outputs = Activation('relu')(x)
