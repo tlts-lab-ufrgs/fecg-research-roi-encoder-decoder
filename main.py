@@ -15,6 +15,8 @@ import tensorflow as tf
 # import tensorflow.keras.layers as Layers, Input
 
 from models.linknet import linknet
+from models.ae_proposed_tests_file import proposed_ae
+
 from losses.mse_with_mask import mse_with_mask
 from utils.lr_scheduler import callback
 from utils.training_patience import callback as patience_callback
@@ -39,7 +41,7 @@ DATA_BATCH = 4
 QRS_DURATION = 0.1  # seconds, max
 QRS_DURATION_STEP = 100
 
-INIT_LR = 0.01
+INIT_LR = 0.001
  
 #%% Data Loading 
 
@@ -66,7 +68,9 @@ plt.plot(fecg_store[10])
     
 input_shape = (DATA_BATCH, LEN_DATA, CHANNELS)
 
-model = linknet(input_shape, num_classes=1)
+# model = linknet(input_shape, num_classes=1)
+
+model = proposed_ae(input_shape, num_classes=1)
 
 # def weighted_loss(y_true, y_pred, weights):
 #       loss = tf.math.squared_difference(y_pred, y_true)
@@ -95,7 +99,7 @@ model.compile(
 history = model.fit(data_store, fecg_store, 
           epochs=100, 
           batch_size=BATCH_SIZE,
-          validation_split=0.3,
+          validation_split=0.25,
           shuffle=True, 
           callbacks=[
             callback,
@@ -115,7 +119,7 @@ ax.legend()
 
 #%%
 
-test = model.evaluate(data_store, fecg_store)
+test = model.evaluate(data_store, fecg_store[4])
 print(test)
 
 #%%
@@ -130,9 +134,9 @@ fig, ax = plt.subplots()
 # ax.plot(predict[1, :], color='orange')
 
 # ax.plot(data_store[200], alpha = 0.5)
-ax.plot(predict[5], label='predito')
+ax.plot(predict[26], label='predito')
 
-ax.plot(fecg_store[5], label='real')
+ax.plot(fecg_store[26], label='real')
 
 ax.legend()
 2# %%
