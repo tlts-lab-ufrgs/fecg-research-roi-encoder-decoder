@@ -69,32 +69,34 @@ def decoder_block(inputs, skip_connection, filters_num, kernel_size=3, stride=2,
 
 def mask_decoder_block(x, encoder_block1, encoder_block2, encoder_block3, encoder_block4):
     
-    print(np.shape(x))
+    print('XXXX', np.shape(x))
     print(np.shape(encoder_block3))
     
-    x = conv_block(x, num_filters=256, kernel_size=2, padding='valid')
-    # ((timesteps - 1) * strides + kernel_size - 2 * padding + output_padding)
-    x = Conv1DTranspose(
-        256, 
-        kernel_size=4, 
-        activation="relu", 
-        strides=2,
-        output_padding=0
-    )(x)
-    x = conv_block(x, num_filters=256, kernel_size=1, padding='valid')
+    # x = conv_block(x, num_filters=256, kernel_size=2, padding='valid')
+    # # ((timesteps - 1) * strides + kernel_size - 2 * padding + output_padding)
+    # x = Conv1DTranspose(
+    #     256, 
+    #     kernel_size=4, 
+    #     activation="relu", 
+    #     strides=2,
+    #     output_padding=0
+    # )(x)
+    # x = conv_block(x, num_filters=256, kernel_size=1, padding='valid')
     
+    # print('conv X', np.shape(x))
     
         # # Decoder
     # decoder = decoder_block(x, encoder_block4, 256, kernel_size=4)
-    decoder = decoder_block(x, encoder_block3, 256, kernel_size=4)
-    decoder = decoder_block(decoder, encoder_block2, 128, kernel_size=4)
-    decoder = decoder_block(decoder, encoder_block1, 64, kernel_size=4)
+    decoder = decoder_block(x, encoder_block4[:, :, 256:512], 256, kernel_size=4)
+    decoder = decoder_block(decoder, encoder_block3[:, :, 128:256], 128, kernel_size=4)
+    decoder = decoder_block(decoder, encoder_block2[:, :, 64:128], 64, kernel_size=4)
+    decoder = decoder_block(decoder, encoder_block1[:, :, 32:64], 32, kernel_size=4)
 
     # Last upsampling
     x = UpSampling1D(2)(decoder)
     x = conv_block(x, num_filters=1, kernel_size=1, stride=1)
                 
-    decode_mask = Activation('softmax')(x)
+    decode_mask = Activation('relu')(x)
     
     # decode_mask = Dense(units = 2, activation='softmax')(x)
         
@@ -150,8 +152,8 @@ def proposed_ae(input_shape=(256, 1), num_classes=21):  # Adjust input_shape and
     print('Bottle neck', np.shape(bottleneck))
 
    
-    mask_decoded = mask_decoder_block(bottleneck[:, :, 0:512], encoder_block1, encoder_block2, encoder_block3, encoder_block4)
-    signal_decoded = signal_decoder_block(bottleneck[:, :, 512:1024], encoder_block1, encoder_block2, encoder_block3, encoder_block4)
+    mask_decoded = mask_decoder_block(bottleneck[:, :, 512:1024], encoder_block1, encoder_block2, encoder_block3, encoder_block4)
+    signal_decoded = signal_decoder_block(bottleneck[:, :, 0:512], encoder_block1, encoder_block2, encoder_block3, encoder_block4)
 
     # Output
     outputs = tf.concat([signal_decoded, mask_decoded], 2)

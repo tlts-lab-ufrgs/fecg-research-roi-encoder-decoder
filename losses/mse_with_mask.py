@@ -26,11 +26,16 @@ def mse_with_mask(y_true, y_pred):
     
     error = y_true_mod - y_pred_mod
     
-    error_2 = y_true[:, :, 0] - y_pred_mod
+    # error_2 = y_true[:, :, 0] - y_pred_mod
     
-    error = 0.3 * error_signal + 0.4 * error + 0.3 * error_mask
+    # error = 0.3 * error_signal + 0.4 * error + 0.3 * error_mask
 
-    loss = tf.reduce_sum(tf.multiply(error, error)) / N # tf.cast(N, tf.float32)
+    loss_combined = tf.reduce_sum(tf.multiply(error, error)) / N # tf.cast(N, tf.float32)
+    
+    loss_signal = tf.reduce_sum(tf.multiply(error_signal, error_signal)) / N # tf.cast(N, tf.float32)
+    loss_mask = tf.reduce_sum(tf.multiply(error_mask, error_mask)) / N
+    
+    loss = loss_combined + loss_signal + loss_mask
 
     return loss
 

@@ -38,7 +38,7 @@ BATCH_SIZE = 4
 
 DATA_BATCH = 4
 
-QRS_DURATION = 0.1  # seconds, max
+QRS_DURATION = 0.05  # seconds, max
 QRS_DURATION_STEP = 100
 
 INIT_LR = 0.001
@@ -134,9 +134,9 @@ fig, ax = plt.subplots()
 # ax.plot(predict[1, :], color='orange')
 
 # ax.plot(data_store[200], alpha = 0.5)
-ax.plot(predict[26], label='predito')
+ax.plot(predict[25], label='predito')
 
-ax.plot(fecg_store[26], label='real')
+ax.plot(fecg_store[25], label='real')
 
 ax.legend()
 2# %%
