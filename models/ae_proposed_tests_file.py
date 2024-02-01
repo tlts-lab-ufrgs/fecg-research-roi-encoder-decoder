@@ -69,8 +69,8 @@ def decoder_block(inputs, skip_connection, filters_num, kernel_size=3, stride=2,
 
 def mask_decoder_block(x, encoder_block1, encoder_block2, encoder_block3, encoder_block4):
     
-    print('XXXX', np.shape(x))
-    print(np.shape(encoder_block3))
+    # print('XXXX', np.shape(x))
+    # print(np.shape(encoder_block3))
     
     # x = conv_block(x, num_filters=256, kernel_size=2, padding='valid')
     # # ((timesteps - 1) * strides + kernel_size - 2 * padding + output_padding)
@@ -83,14 +83,13 @@ def mask_decoder_block(x, encoder_block1, encoder_block2, encoder_block3, encode
     # )(x)
     # x = conv_block(x, num_filters=256, kernel_size=1, padding='valid')
     
-    # print('conv X', np.shape(x))
-    
-        # # Decoder
-    # decoder = decoder_block(x, encoder_block4, 256, kernel_size=4)
+        # Decoder4)
+
     decoder = decoder_block(x, encoder_block4[:, :, 256:512], 256, kernel_size=4)
     decoder = decoder_block(decoder, encoder_block3[:, :, 128:256], 128, kernel_size=4)
     decoder = decoder_block(decoder, encoder_block2[:, :, 64:128], 64, kernel_size=4)
     decoder = decoder_block(decoder, encoder_block1[:, :, 32:64], 32, kernel_size=4)
+
 
     # Last upsampling
     x = UpSampling1D(2)(decoder)
@@ -115,11 +114,19 @@ def signal_decoder_block(x, encoder_block1, encoder_block2, encoder_block3, enco
     )(x)
     x = conv_block(x, num_filters=256, kernel_size=1, padding='valid')
     
+    print('hey bb', np.shape(x))
+    
             # # Decoder
-    # decoder = decoder_block(x, encoder_block4, 256, kernel_size=4)
+    # decoder = decoder_block(x, encoder_block4, 512, kernel_size=4)
     decoder = decoder_block(x, encoder_block3, 256, kernel_size=4)
     decoder = decoder_block(decoder, encoder_block2, 128, kernel_size=4)
     decoder = decoder_block(decoder, encoder_block1, 64, kernel_size=4)
+    
+    # decoder = decoder_block(x, encoder_block4[:, :, 0:256], 256, kernel_size=4)
+    # decoder = decoder_block(decoder, encoder_block3[:, :, 0:128], 128, kernel_size=4)
+    # decoder = decoder_block(decoder, encoder_block2[:, :, 0:64], 64, kernel_size=4)
+    # decoder = decoder_block(decoder, encoder_block1[:, :, 0:32], 32, kernel_size=4)
+
 
     # Last upsampling
     x = UpSampling1D(2)(decoder)
