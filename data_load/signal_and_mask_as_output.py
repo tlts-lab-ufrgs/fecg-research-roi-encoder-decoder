@@ -20,6 +20,15 @@ LEN_DATA = 600
 
 QRS_DURATION = 0.1  # seconds, max
 
+QRS_DURATION_STEP = 100
+
+def gaussian(x, mu, sig):
+    
+    signal = 1.0 / (np.sqrt(2.0 * np.pi) * sig) * np.exp(-np.power((x - mu) / sig, 2.0) / 2)
+    
+    return signal / np.max(signal)
+
+
 #%% Data Loading 
 
 def load_data(len_data = LEN_DATA, path = DATA_PATH, qrs_duration = QRS_DURATION):
@@ -59,8 +68,9 @@ def load_data(len_data = LEN_DATA, path = DATA_PATH, qrs_duration = QRS_DURATION
                 (file_info.times >= (step - qrs_duration)) &
                 (file_info.times <= (step + qrs_duration))
             )[0]
+            
 
-            binary_mask[qrs_region] = 1
+            binary_mask[qrs_region] = 1 # gaussian(qrs_region, center_index, QRS_DURATION_STEP / 2)
 
 
         for batch in range(0, 262144, len_data):

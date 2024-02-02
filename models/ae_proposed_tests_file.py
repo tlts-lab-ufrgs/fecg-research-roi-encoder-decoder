@@ -132,7 +132,7 @@ def signal_decoder_block(x, encoder_block1, encoder_block2, encoder_block3, enco
     x = UpSampling1D(2)(decoder)
     x = conv_block(x, num_filters=1, kernel_size=1, stride=1)
                 
-    decode_signal = Activation('relu')(x)
+    decode_signal = Activation(tf.keras.activations.softplus)(x)
     
     # decode_signal = Dense(units = 2, activation='softmax')(x)
         

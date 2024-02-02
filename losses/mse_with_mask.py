@@ -22,7 +22,9 @@ def mse_with_mask(y_true, y_pred):
 
     # N = tf.size(tf.where(y_true[:, :, 1] == 1))# 512 # tf.cast(tf.shape(y_true_mod)[0], tf.float32)
     
-    
+    # bce = tf.keras.losses.BinaryCrossentropy(from_logits=False)
+    # loss_mask = bce(y_true[:, :, 1], y_pred[:, :, 1])
+
     
     error = y_true_mod - y_pred_mod
     
@@ -35,7 +37,7 @@ def mse_with_mask(y_true, y_pred):
     loss_signal = tf.reduce_sum(tf.multiply(error_signal, error_signal)) / N # tf.cast(N, tf.float32)
     loss_mask = tf.reduce_sum(tf.multiply(error_mask, error_mask)) / N
     
-    loss = 2 * loss_combined + loss_signal + loss_mask
+    loss = 2 * loss_combined + loss_mask
 
     return loss
 
