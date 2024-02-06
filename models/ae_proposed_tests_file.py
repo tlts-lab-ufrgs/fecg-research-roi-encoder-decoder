@@ -2,6 +2,11 @@
 
 import numpy as np
 import tensorflow as tf
+
+from tensorflow.keras.activations import (
+    softplus
+)
+
 from tensorflow.keras.layers import (
     Input, 
     Conv1D, 
@@ -16,22 +21,23 @@ from tensorflow.keras.layers import (
     Dense
 )
 
-def downsampling(inputs, num_filters, stride):
+def downsampling(inputs, num_filters, stride, remove_normalization = False):
     
     x = Conv1D(num_filters, kernel_size=1, strides=stride, padding='same')(inputs)
+    
     x = BatchNormalization()(x)
     
     return x
 
-def conv_block(inputs, num_filters, kernel_size=3, stride=1, padding='same'):
+def conv_block(inputs, num_filters, kernel_size=3, stride=1, padding='same', activation='relu'):
     x = Conv1D(num_filters, kernel_size, strides=stride, padding=padding)(inputs)
-    # x = BatchNormalization()(x)
     x = Activation('relu')(x)
+    
     return x
 
-def linknet_block(inputs, num_filters):
-    x1 = conv_block(inputs, num_filters, stride=2)
-    x1 = conv_block(x1, num_filters)
+def linknet_block(inputs, num_filters, activation='relu'):
+    x1 = conv_block(inputs, num_filters, stride=2, activation=activation)
+    x1 = conv_block(x1, num_filters, activation=activation)
  
     reshaped_inputs = downsampling(inputs, num_filters, stride=2)
     
@@ -39,26 +45,27 @@ def linknet_block(inputs, num_filters):
     
     x = Add()([x1, reshaped_inputs])
     
-    x2 = conv_block(x, num_filters)
-    x2 = conv_block(x2, num_filters)
+    x2 = conv_block(x, num_filters, activation=activation)
+    x2 = conv_block(x2, num_filters, activation=activation)
     
     x = Add()([x1, x2])
+    
     return x
 
-def decoder_block(inputs, skip_connection, filters_num, kernel_size=3, stride=2, output_padding=0):
+def decoder_block(inputs, skip_connection, filters_num, kernel_size=3, stride=2, output_padding=0, activation='relu'):
 
     print('Decoder input', np.shape(inputs))
     
-    x = conv_block(inputs, num_filters=filters_num, kernel_size=2, padding='valid')
+    x = conv_block(inputs, num_filters=filters_num, kernel_size=2, padding='valid', activation=activation)
     # ((timesteps - 1) * strides + kernel_size - 2 * padding + output_padding)
     x = Conv1DTranspose(
         filters_num, 
         kernel_size=kernel_size, 
-        activation="relu", 
+        activation=activation, 
         strides=stride, 
         output_padding=output_padding
     )(x)
-    x = conv_block(x, num_filters=filters_num, kernel_size=1, padding='valid')
+    x = conv_block(x, num_filters=filters_num, kernel_size=1, padding='valid', activation = activation) 
     
     x = Add()([x, skip_connection])
     
@@ -84,11 +91,18 @@ def mask_decoder_block(x, encoder_block1, encoder_block2, encoder_block3, encode
     # x = conv_block(x, num_filters=256, kernel_size=1, padding='valid')
     
         # Decoder4)
+    
 
     decoder = decoder_block(x, encoder_block4[:, :, 256:512], 256, kernel_size=4)
     decoder = decoder_block(decoder, encoder_block3[:, :, 128:256], 128, kernel_size=4)
     decoder = decoder_block(decoder, encoder_block2[:, :, 64:128], 64, kernel_size=4)
     decoder = decoder_block(decoder, encoder_block1[:, :, 32:64], 32, kernel_size=4)
+
+    # decoder = decoder_block(x, downsampling(encoder_block4, 256, 1, remove_normalization = True), 256, kernel_size=4)
+    # decoder = decoder_block(decoder, downsampling(encoder_block3, 128, 1, remove_normalization = True), 128, kernel_size=4)
+    # decoder = decoder_block(decoder, downsampling(encoder_block2, 64, 1, remove_normalization = True), 64, kernel_size=4)
+    # decoder = decoder_block(decoder, downsampling(encoder_block1, 32, 1, remove_normalization = True), 32, kernel_size=4)
+
 
 
     # Last upsampling
@@ -103,7 +117,9 @@ def mask_decoder_block(x, encoder_block1, encoder_block2, encoder_block3, encode
 
 def signal_decoder_block(x, encoder_block1, encoder_block2, encoder_block3, encoder_block4):
     
-    x = conv_block(x, num_filters=256, kernel_size=2, padding='valid')
+    
+    
+    x = conv_block(x, num_filters=256, kernel_size=2, padding='valid', activation='relu')
     # ((timesteps - 1) * strides + kernel_size - 2 * padding + output_padding)
     x = Conv1DTranspose(
         256, 
@@ -112,15 +128,15 @@ def signal_decoder_block(x, encoder_block1, encoder_block2, encoder_block3, enco
         strides=2,
         output_padding=0
     )(x)
-    x = conv_block(x, num_filters=256, kernel_size=1, padding='valid')
+    x = conv_block(x, num_filters=256, kernel_size=1, padding='valid', activation='relu')
     
-    print('hey bb', np.shape(x))
+    # x = Add()([x, downsampling(encoder_block4, 256, stride=1, remove_normalization=True)])
     
             # # Decoder
     # decoder = decoder_block(x, encoder_block4, 512, kernel_size=4)
-    decoder = decoder_block(x, encoder_block3, 256, kernel_size=4)
-    decoder = decoder_block(decoder, encoder_block2, 128, kernel_size=4)
-    decoder = decoder_block(decoder, encoder_block1, 64, kernel_size=4)
+    decoder = decoder_block(x, encoder_block3, 256, kernel_size=4, activation='relu')
+    decoder = decoder_block(decoder, encoder_block2, 128, kernel_size=4, activation='relu')
+    decoder = decoder_block(decoder, encoder_block1, 64, kernel_size=4, activation='relu')
     
     # decoder = decoder_block(x, encoder_block4[:, :, 0:256], 256, kernel_size=4)
     # decoder = decoder_block(decoder, encoder_block3[:, :, 0:128], 128, kernel_size=4)
@@ -132,7 +148,7 @@ def signal_decoder_block(x, encoder_block1, encoder_block2, encoder_block3, enco
     x = UpSampling1D(2)(decoder)
     x = conv_block(x, num_filters=1, kernel_size=1, stride=1)
                 
-    decode_signal = Activation(tf.keras.activations.softplus)(x)
+    decode_signal = Activation('relu')(x)
     
     # decode_signal = Dense(units = 2, activation='softmax')(x)
         
@@ -157,7 +173,13 @@ def proposed_ae(input_shape=(256, 1), num_classes=21):  # Adjust input_shape and
 
     bottleneck = linknet_block(encoder_block4, num_filters=1024)
     print('Bottle neck', np.shape(bottleneck))
+    
+    
+    # mask_input = downsampling(bottleneck, 512, 1, remove_normalization = True)
+    # signal_input = downsampling(bottleneck, 512, 1, remove_normalization = True)
 
+    # print('masked input', np.shape(mask_input))
+    # print('real input', np.shape(bottleneck[:, :, 512:1024]))
    
     mask_decoded = mask_decoder_block(bottleneck[:, :, 512:1024], encoder_block1, encoder_block2, encoder_block3, encoder_block4)
     signal_decoded = signal_decoder_block(bottleneck[:, :, 0:512], encoder_block1, encoder_block2, encoder_block3, encoder_block4)
@@ -171,11 +193,3 @@ def proposed_ae(input_shape=(256, 1), num_classes=21):  # Adjust input_shape and
     model = tf.keras.Model(inputs=inputs, outputs=outputs, name='linknet')
     return model
 
-# # Create LinkNet model for 1D signals
-# model = linknet()
-# model.summary()
-
-#%%
-
-# linknet((32, 600, 4), 2)
-# %%

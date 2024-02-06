@@ -18,7 +18,7 @@ DATA_PATH = "/home/julia/Documents/fECG_research/datasets/abdominal-and-direct-f
 
 LEN_DATA = 600
 
-QRS_DURATION = 0.1  # seconds, max
+QRS_DURATION = 0.2  # seconds, max
 
 QRS_DURATION_STEP = 100
 
@@ -70,7 +70,7 @@ def load_data(len_data = LEN_DATA, path = DATA_PATH, qrs_duration = QRS_DURATION
             )[0]
             
 
-            binary_mask[qrs_region] = 1 # gaussian(qrs_region, center_index, QRS_DURATION_STEP / 2)
+            binary_mask[qrs_region] = gaussian(qrs_region, center_index, QRS_DURATION_STEP / 2)
 
 
         for batch in range(0, 262144, len_data):
