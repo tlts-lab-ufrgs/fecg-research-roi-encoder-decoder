@@ -18,7 +18,7 @@ DATA_PATH = "/home/julia/Documents/fECG_research/datasets/abdominal-and-direct-f
 
 LEN_DATA = 600
 
-QRS_DURATION = 0.2  # seconds, max
+QRS_DURATION = 0.1  # seconds, max
 
 QRS_DURATION_STEP = 100
 
@@ -36,7 +36,7 @@ def load_data(len_data = LEN_DATA, path = DATA_PATH, qrs_duration = QRS_DURATION
     FILENAMES = glob.glob(path + "*.edf")
 
 
-    for file in FILENAMES[0:1]:
+    for file in FILENAMES[0:3]:
 
         file_info = mne.io.read_raw_edf(file)
         filedata = file_info.get_data()
