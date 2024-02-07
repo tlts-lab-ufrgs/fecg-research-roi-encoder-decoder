@@ -37,7 +37,7 @@ def mse_with_mask(y_true, y_pred):
     loss_signal = tf.reduce_sum(tf.multiply(error_signal, error_signal)) / N # tf.cast(N, tf.float32)
     loss_mask = tf.reduce_sum(tf.multiply(error_mask, error_mask)) / N
     
-    loss = 0.25 * loss_combined + 0.625 * loss_mask + 0.125 * loss_signal
+    loss = 0.7 * loss_combined + 0.3 * loss_mask + 0 * loss_signal
 
     return loss
 

@@ -57,7 +57,6 @@ def decoder_block(inputs, skip_connection, filters_num, kernel_size=3, stride=2,
     print('Decoder input', np.shape(inputs))
     
     x = conv_block(inputs, num_filters=filters_num, kernel_size=2, padding='valid', activation=activation)
-    # ((timesteps - 1) * strides + kernel_size - 2 * padding + output_padding)
     x = Conv1DTranspose(
         filters_num, 
         kernel_size=kernel_size, 
@@ -76,49 +75,11 @@ def decoder_block(inputs, skip_connection, filters_num, kernel_size=3, stride=2,
 
 def mask_decoder_block(x, encoder_block1, encoder_block2, encoder_block3, encoder_block4):
     
-    # print('XXXX', np.shape(x))
-    # print(np.shape(encoder_block3))
-    
-    # x = conv_block(x, num_filters=256, kernel_size=2, padding='valid')
-    # # ((timesteps - 1) * strides + kernel_size - 2 * padding + output_padding)
-    # x = Conv1DTranspose(
-    #     256, 
-    #     kernel_size=4, 
-    #     activation="relu", 
-    #     strides=2,
-    #     output_padding=0
-    # )(x)
-    # x = conv_block(x, num_filters=256, kernel_size=1, padding='valid')
-    
-        # Decoder4)
-    
+    # decoder = decoder_block(x, encoder_block4[:, :, 256:512], 256, kernel_size=4)
+    # decoder = decoder_block(decoder, encoder_block3[:, :, 128:256], 128, kernel_size=4)
+    # decoder = decoder_block(decoder, encoder_block2[:, :, 64:128], 64, kernel_size=4)
+    # decoder = decoder_block(decoder, encoder_block1[:, :, 32:64], 32, kernel_size=4)
 
-    decoder = decoder_block(x, encoder_block4[:, :, 256:512], 256, kernel_size=4)
-    decoder = decoder_block(decoder, encoder_block3[:, :, 128:256], 128, kernel_size=4)
-    decoder = decoder_block(decoder, encoder_block2[:, :, 64:128], 64, kernel_size=4)
-    decoder = decoder_block(decoder, encoder_block1[:, :, 32:64], 32, kernel_size=4)
-
-    # decoder = decoder_block(x, downsampling(encoder_block4, 256, 1, remove_normalization = True), 256, kernel_size=4)
-    # decoder = decoder_block(decoder, downsampling(encoder_block3, 128, 1, remove_normalization = True), 128, kernel_size=4)
-    # decoder = decoder_block(decoder, downsampling(encoder_block2, 64, 1, remove_normalization = True), 64, kernel_size=4)
-    # decoder = decoder_block(decoder, downsampling(encoder_block1, 32, 1, remove_normalization = True), 32, kernel_size=4)
-
-
-
-    # Last upsampling
-    x = UpSampling1D(2)(decoder)
-    x = conv_block(x, num_filters=1, kernel_size=1, stride=1)
-                
-    decode_mask = Activation('relu')(x)
-    
-    # decode_mask = Dense(units = 2, activation='softmax')(x)
-        
-    return decode_mask
-
-def signal_decoder_block(x, encoder_block1, encoder_block2, encoder_block3, encoder_block4):
-    
-    
-    
     x = conv_block(x, num_filters=256, kernel_size=2, padding='valid', activation='relu')
     # ((timesteps - 1) * strides + kernel_size - 2 * padding + output_padding)
     x = Conv1DTranspose(
@@ -128,29 +89,72 @@ def signal_decoder_block(x, encoder_block1, encoder_block2, encoder_block3, enco
         strides=2,
         output_padding=0
     )(x)
-    x = conv_block(x, num_filters=256, kernel_size=1, padding='valid', activation='relu')
+    x = conv_block(x, num_filters=512, kernel_size=1, padding='valid', activation='relu')
     
-    # x = Add()([x, downsampling(encoder_block4, 256, stride=1, remove_normalization=True)])
-    
-            # # Decoder
-    # decoder = decoder_block(x, encoder_block4, 512, kernel_size=4)
     decoder = decoder_block(x, encoder_block3, 256, kernel_size=4, activation='relu')
     decoder = decoder_block(decoder, encoder_block2, 128, kernel_size=4, activation='relu')
     decoder = decoder_block(decoder, encoder_block1, 64, kernel_size=4, activation='relu')
     
-    # decoder = decoder_block(x, encoder_block4[:, :, 0:256], 256, kernel_size=4)
-    # decoder = decoder_block(decoder, encoder_block3[:, :, 0:128], 128, kernel_size=4)
-    # decoder = decoder_block(decoder, encoder_block2[:, :, 0:64], 64, kernel_size=4)
-    # decoder = decoder_block(decoder, encoder_block1[:, :, 0:32], 32, kernel_size=4)
-
+    
 
     # Last upsampling
-    x = UpSampling1D(2)(decoder)
+    x = conv_block(decoder, num_filters=256, kernel_size=2, padding='valid', activation='relu')
+    x = Conv1DTranspose(
+        256, 
+        kernel_size=4, 
+        activation="relu", 
+        strides=2,
+        output_padding=0
+    )(x)
+    x = conv_block(x, num_filters=16, kernel_size=1, padding='valid', activation='relu')
+    
+    
+    x = conv_block(x, num_filters=1, kernel_size=1, stride=1)
+                
+    decode_mask = Activation('relu')(x)
+        
+    return decode_mask
+
+def signal_decoder_block(x, encoder_block1, encoder_block2, encoder_block3, encoder_block4):
+    
+    
+    
+    # x = conv_block(x, num_filters=256, kernel_size=2, padding='valid', activation='relu')
+    # # ((timesteps - 1) * strides + kernel_size - 2 * padding + output_padding)
+    # x = Conv1DTranspose(
+    #     256, 
+    #     kernel_size=4, 
+    #     activation="relu", 
+    #     strides=2,
+    #     output_padding=0
+    # )(x)
+    # x = conv_block(x, num_filters=512, kernel_size=1, padding='valid', activation='relu')
+    
+    # decoder = decoder_block(x, encoder_block3, 256, kernel_size=4, activation='relu')
+    # decoder = decoder_block(decoder, encoder_block2, 128, kernel_size=4, activation='relu')
+    # decoder = decoder_block(decoder, encoder_block1, 64, kernel_size=4, activation='relu')
+    
+    decoder = decoder_block(x, encoder_block4[:, :, 0:256], 256, kernel_size=4)
+    decoder = decoder_block(decoder, encoder_block3[:, :, 0:128], 128, kernel_size=4)
+    decoder = decoder_block(decoder, encoder_block2[:, :, 0:64], 64, kernel_size=4)
+    decoder = decoder_block(decoder, encoder_block1[:, :, 0:32], 32, kernel_size=4)
+
+   
+    x = conv_block(decoder, num_filters=512, kernel_size=2, padding='valid', activation='relu')
+    
+    x = Conv1DTranspose(
+        512, 
+        kernel_size=4, 
+        activation="relu", 
+        strides=2,
+        output_padding=0
+    )(x)
+    x = conv_block(x, num_filters=64, kernel_size=1, padding='valid', activation='relu')
+    
+    
     x = conv_block(x, num_filters=1, kernel_size=1, stride=1)
                 
     decode_signal = Activation('relu')(x)
-    
-    # decode_signal = Dense(units = 2, activation='softmax')(x)
         
     return decode_signal
 
@@ -173,13 +177,7 @@ def proposed_ae(input_shape=(256, 1), num_classes=21):  # Adjust input_shape and
 
     bottleneck = linknet_block(encoder_block4, num_filters=1024)
     print('Bottle neck', np.shape(bottleneck))
-    
-    
-    # mask_input = downsampling(bottleneck, 512, 1, remove_normalization = True)
-    # signal_input = downsampling(bottleneck, 512, 1, remove_normalization = True)
 
-    # print('masked input', np.shape(mask_input))
-    # print('real input', np.shape(bottleneck[:, :, 512:1024]))
    
     mask_decoded = mask_decoder_block(bottleneck[:, :, 512:1024], encoder_block1, encoder_block2, encoder_block3, encoder_block4)
     signal_decoded = signal_decoder_block(bottleneck[:, :, 0:512], encoder_block1, encoder_block2, encoder_block3, encoder_block4)

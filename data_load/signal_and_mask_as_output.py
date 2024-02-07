@@ -18,9 +18,9 @@ DATA_PATH = "/home/julia/Documents/fECG_research/datasets/abdominal-and-direct-f
 
 LEN_DATA = 600
 
-QRS_DURATION = 0.1  # seconds, max
+QRS_DURATION = 0.05  # seconds, max
 
-QRS_DURATION_STEP = 100
+QRS_DURATION_STEP = 26
 
 def gaussian(x, mu, sig):
     
