@@ -15,12 +15,11 @@ import numpy as np
 #%% Parameters
 
 DATA_PATH = "/home/julia/Documents/fECG_research/datasets/abdominal-and-direct-fetal-ecg-database-1.0.0/"
+LEN_DATA = 512
+QRS_DURATION = 0.1  # seconds, max
+QRS_DURATION_STEP = 50
 
-LEN_DATA = 600
-
-QRS_DURATION = 0.05  # seconds, max
-
-QRS_DURATION_STEP = 26
+#%% Gaussian function
 
 def gaussian(x, mu, sig):
     
@@ -31,17 +30,12 @@ def gaussian(x, mu, sig):
 
 #%% Data Loading 
 
-def load_data(len_data = LEN_DATA, path = DATA_PATH, qrs_duration = QRS_DURATION):
-    
-    FILENAMES = glob.glob(path + "*.edf")
+def load_data(filenames, len_data = LEN_DATA, path = DATA_PATH, qrs_duration = QRS_DURATION, qrs_len = QRS_DURATION_STEP):
 
-
-    for file in FILENAMES[0:3]:
+    for file in filenames:
 
         file_info = mne.io.read_raw_edf(file)
         filedata = file_info.get_data()
-        
-        # filedata *= 1E5
         
         filedata += np.abs(np.min(filedata)) # to zero things
         
@@ -54,11 +48,9 @@ def load_data(len_data = LEN_DATA, path = DATA_PATH, qrs_duration = QRS_DURATION
         annotations = mne.read_annotations(file)
         time_annotations = annotations.onset
         
+        # Generates masks
 
-
-        # Generates Binary masks
-
-        binary_mask = np.zeros(shape=file_info.times.shape)
+        mask = np.zeros(shape=file_info.times.shape)
 
         for step in time_annotations:
 
@@ -70,7 +62,7 @@ def load_data(len_data = LEN_DATA, path = DATA_PATH, qrs_duration = QRS_DURATION
             )[0]
             
 
-            binary_mask[qrs_region] = gaussian(qrs_region, center_index, QRS_DURATION_STEP / 2)
+            mask[qrs_region] = gaussian(qrs_region, center_index, qrs_len / 2)
 
 
         for batch in range(0, 262144, len_data):
@@ -78,10 +70,8 @@ def load_data(len_data = LEN_DATA, path = DATA_PATH, qrs_duration = QRS_DURATION
 
             chunked_data = filedata[1::, (batch): ((batch + len_data))].transpose()
             
-            # chunked_data_with_noise = chunked_data + 0.01 * np.random.normal(0,1,len_data)    
-                  
             chunked_fecg_real_data = filedata[0, (batch): (batch + len_data)]
-            chunked_fecg_binary_data = binary_mask[(batch): (batch + len_data)]
+            chunked_fecg_binary_data = mask[(batch): (batch + len_data)]
 
             chunked_fecg_data = np.array([
                 chunked_fecg_real_data, 
@@ -100,5 +90,3 @@ def load_data(len_data = LEN_DATA, path = DATA_PATH, qrs_duration = QRS_DURATION
     
     
     return data_store, fecg_store
-
-# %%
