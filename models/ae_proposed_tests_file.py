@@ -80,10 +80,10 @@ def mask_decoder_block(x, encoder_block1, encoder_block2, encoder_block3, encode
     # decoder = decoder_block(decoder, encoder_block2[:, :, 64:128], 64, kernel_size=4)
     # decoder = decoder_block(decoder, encoder_block1[:, :, 32:64], 32, kernel_size=4)
 
-    x = conv_block(x, num_filters=256, kernel_size=2, padding='valid', activation='relu')
+    x = conv_block(x, num_filters=512, kernel_size=2, padding='valid', activation='relu')
     # ((timesteps - 1) * strides + kernel_size - 2 * padding + output_padding)
     x = Conv1DTranspose(
-        256, 
+        512, 
         kernel_size=4, 
         activation="relu", 
         strides=2,
@@ -98,9 +98,9 @@ def mask_decoder_block(x, encoder_block1, encoder_block2, encoder_block3, encode
     
 
     # Last upsampling
-    x = conv_block(decoder, num_filters=256, kernel_size=2, padding='valid', activation='relu')
+    x = conv_block(decoder, num_filters=512, kernel_size=2, padding='valid', activation='relu')
     x = Conv1DTranspose(
-        256, 
+        512, 
         kernel_size=4, 
         activation="relu", 
         strides=2,

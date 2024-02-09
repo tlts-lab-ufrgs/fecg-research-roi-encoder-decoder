@@ -30,26 +30,33 @@ def gaussian(x, mu, sig):
 
 #%% Data Loading 
 
-def load_data(filenames, len_data = LEN_DATA, path = DATA_PATH, qrs_duration = QRS_DURATION, qrs_len = QRS_DURATION_STEP):
+def load_data(
+    filenames, 
+    type_of_file='edf', 
+    len_data = LEN_DATA, 
+    path = DATA_PATH, 
+    qrs_duration = QRS_DURATION, 
+    qrs_len = QRS_DURATION_STEP
+):
 
     for file in filenames:
-
-        file_info = mne.io.read_raw_edf(file)
-        filedata = file_info.get_data()
+        
+        # Read data and annotations
+        
+        if type_of_file == 'edf':
+            file_info = mne.io.read_raw_edf(file)
+            filedata = file_info.get_data()
+            annotations = mne.read_annotations(file)
+            time_annotations = annotations.onset
+        
+        
+        # Data Normalization
         
         filedata += np.abs(np.min(filedata)) # to zero things
-        
         max_absolute_value = np.max(np.abs(filedata))
-        
-        
-        
         filedata *= (1 / max_absolute_value)
-
-        annotations = mne.read_annotations(file)
-        time_annotations = annotations.onset
         
         # Generates masks
-
         mask = np.zeros(shape=file_info.times.shape)
 
         for step in time_annotations:
@@ -61,10 +68,10 @@ def load_data(filenames, len_data = LEN_DATA, path = DATA_PATH, qrs_duration = Q
                 (file_info.times <= (step + qrs_duration))
             )[0]
             
-
             mask[qrs_region] = gaussian(qrs_region, center_index, qrs_len / 2)
 
-
+        # Resize data to be in the desire batch size
+        
         for batch in range(0, 262144, len_data):
 
 

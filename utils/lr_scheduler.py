@@ -3,10 +3,10 @@ import tensorflow as tf
 import numpy as np
 
 def scheduler(epoch, lr):
-  if epoch < 10:
+  if epoch < 100:
     return lr
   else:
-    #return 0.001 * (np.exp(-epoch/10) + 0.1* np.sin(np.pi * epoch/10)**2)
+    # return 0.00001 * (np.exp(-epoch/10) + 0.1* np.sin(np.pi * epoch/10)**2)
     
     return lr * tf.math.exp(-0.1)
 

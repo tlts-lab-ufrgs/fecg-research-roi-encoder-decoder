@@ -38,10 +38,10 @@ BATCH_SIZE = 4
 
 DATA_BATCH = 4
 
-QRS_DURATION = 0.05  # seconds, max
-QRS_DURATION_STEP = 26
+QRS_DURATION = 0.1  # seconds, max
+QRS_DURATION_STEP = 50
 
-INIT_LR = 0.001
+INIT_LR = 0.0001 # 0.0001
  
 #%% Data Loading 
 
@@ -49,8 +49,10 @@ INIT_LR = 0.001
 #     len_data = LEN_DATA, path = DATA_PATH, qrs_duration = QRS_DURATION
 # )
 
+to_be_read = glob.glob(DATA_PATH + "*.edf")[0:4]
+
 data_store, fecg_store = signal_and_mask_as_output.load_data(
-    len_data = LEN_DATA, path = DATA_PATH, qrs_duration = QRS_DURATION
+    to_be_read, len_data = LEN_DATA, path = DATA_PATH, qrs_duration = QRS_DURATION, qrs_len = QRS_DURATION_STEP
 )
 
 #%%
@@ -119,12 +121,6 @@ ax.plot(history.history['val_loss'], label='Validation Loss')
 
 ax.legend()
 
-#%%
-
-# test = model.evaluate(data_store, fecg_store[4])
-# print(test)
-
-
 
 #%% Parameters
 
@@ -141,7 +137,7 @@ def load_data_to_predict(len_data = LEN_DATA, path = DATA_PATH, qrs_duration = Q
     FILENAMES = glob.glob(path + "*.edf")
 
 
-    for file in FILENAMES[3:4]:
+    for file in [FILENAMES[4]]:
         
         
 
@@ -214,7 +210,8 @@ data_store_predict, fecg_store_predict = load_data_to_predict(
     len_data = LEN_DATA, path = DATA_PATH, qrs_duration = QRS_DURATION
 )
 # %%
-
+test = model.evaluate(data_store_predict, fecg_store_predict)
+print(test)
 
 #%%
 
@@ -222,17 +219,16 @@ predict = model.predict(data_store_predict)
 
 # %%
 
-index = 15 
+index =  15
+
+# from ecgdetectors import Detectors
 
 
-from ecgdetectors import Detectors
+# detector = Detectors(1000)
 
+# r_peaks = detector.pan_tompkins_detector(predict[index, :, 0]),
 
-detector = Detectors(1000)
-
-r_peaks = detector.pan_tompkins_detector(predict[index, :, 0]),
-
-print(r_peaks)
+# print(r_peaks)
 
 
 fig, ax = plt.subplots()
@@ -249,55 +245,5 @@ ax.plot(fecg_store_predict[index], label='real')
 
 ax.legend()
 
-#%%
-    
-# import numpy as np
-# from scipy.signal import butter, lfilter, freqz
-# import matplotlib.pyplot as plt
 
-
-# def butter_lowpass(cutoff, fs, order=5):
-#     return butter(order, cutoff, fs=fs, btype='low', analog=False)
-
-# def butter_lowpass_filter(data, cutoff, fs, order=5):
-#     b, a = butter_lowpass(cutoff, fs, order=order)
-#     y = lfilter(b, a, data)
-#     return y
-
-
-# order = 10
-# fs = 1000.0       # sample rate, Hz
-# cutoff = 300  # desired cutoff frequency of the filter, Hz
-
-# index = 16 
-
-# # Filter the data, and plot both the original and filtered signals.
-# y = butter_lowpass_filter(predict[index], cutoff, fs, order)
-
-#%%
-
-
-# from ecgdetectors import Detectors
-
-
-# detector = Detectors(1000)
-
-# r_peaks = detector.pan_tompkins_detector(predict[index, :, 0]),
-
-# print(r_peaks)
-
-
-# fig, ax = plt.subplots()
-
-
-# # ax.plot(predict[1, :], color='orange')
-
-# # ax.plot(data_store[200], alpha = 0.5)
-# ax.plot(predict[index], label='predito')
-
-# ax.plot(fecg_store[index], label='real')
-
-# ax.vlines(ymin = 0, ymax = 1, x = r_peaks[0])
-
-# ax.legend()
-# # %%
+# %%
