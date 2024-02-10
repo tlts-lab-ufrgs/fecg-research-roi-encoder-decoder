@@ -41,7 +41,7 @@ DATA_BATCH = 4
 QRS_DURATION = 0.1  # seconds, max
 QRS_DURATION_STEP = 50
 
-INIT_LR = 0.0001 # 0.0001
+INIT_LR = 0.0005 # 0.0001
  
 #%% Data Loading 
 
