@@ -46,7 +46,7 @@ def mse_with_mask(y_true, y_pred):
     ratio_between_losses = 15 # loss_mask / loss_signal
 
     
-    loss =  10 * loss_mask + 50 * loss_signal
+    loss =  10 * loss_mask + 100 * loss_signal
 
     return loss
 
