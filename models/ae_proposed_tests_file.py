@@ -18,7 +18,8 @@ from tensorflow.keras.layers import (
     UpSampling1D, 
     Reshape, 
     Dropout, 
-    Dense
+    Dense, 
+    Lambda
 )
 
 def downsampling(inputs, num_filters, stride, remove_normalization = False):

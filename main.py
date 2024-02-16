@@ -22,6 +22,9 @@ from utils.lr_scheduler import callback
 from utils.training_patience import callback as patience_callback
 from data_load import mask_as_input, signal_and_mask_as_output
 
+from metrics.mse_mask import mse_mask
+from metrics.mse_signal import mse_signal
+
 #%% Parameters
 
 DATA_PATH = "/home/julia/Documents/fECG_research/datasets/abdominal-and-direct-fetal-ecg-database-1.0.0/"
@@ -41,7 +44,7 @@ DATA_BATCH = 4
 QRS_DURATION = 0.1  # seconds, max
 QRS_DURATION_STEP = 50
 
-INIT_LR = 0.0005 # 0.0001
+INIT_LR = 0.0001 # 0.0001
  
 #%% Data Loading 
 
@@ -55,11 +58,10 @@ data_store, fecg_store = signal_and_mask_as_output.load_data(
     to_be_read, len_data = LEN_DATA, path = DATA_PATH, qrs_duration = QRS_DURATION, qrs_len = QRS_DURATION_STEP
 )
 
-#%%
-
 # plt.plot(data_store[10])
-
-plt.plot(fecg_store[10])
+#%%
+plt.plot(fecg_store[60, :, 0])
+plt.plot(data_store[60])
 
 #% Data Preprocessing
 
@@ -90,7 +92,9 @@ model.compile(
     loss=mse_with_mask, # 
     metrics=[
         tf.keras.metrics.RootMeanSquaredError(name='rmse'), 
-        'mean_squared_error'
+        'mean_squared_error', 
+        mse_signal, 
+        mse_mask
     ]
     )
 
@@ -121,6 +125,20 @@ ax.plot(history.history['val_loss'], label='Validation Loss')
 
 ax.legend()
 
+#%%
+
+#%%
+
+fig, ax = plt.subplots()
+
+ax.plot(history.history['val_mse_mask'], label='MSE Mask')
+
+ax.plot(history.history['val_mse_signal'], label='MSE Signal')
+
+# ax.plot(history.history['mean_squared_error'], label='MSE training')
+
+ax.legend()
+
 
 #%% Parameters
 
@@ -144,16 +162,6 @@ def load_data_to_predict(len_data = LEN_DATA, path = DATA_PATH, qrs_duration = Q
         file_info = mne.io.read_raw_edf(file)
         filedata = file_info.get_data()
         
-        # filedata *= 1E5
-        
-        filedata += np.abs(np.min(filedata)) # to zero things
-        
-        max_absolute_value = np.max(np.abs(filedata))
-        
-        
-        
-        filedata *= (1 / max_absolute_value)
-
         annotations = mne.read_annotations(file)
         time_annotations = annotations.onset
         
@@ -202,6 +210,13 @@ def load_data_to_predict(len_data = LEN_DATA, path = DATA_PATH, qrs_duration = Q
                 fecg_store = np.vstack((fecg_store, [chunked_fecg_data]))
     
     
+    data_store += np.abs(np.min(data_store)) # to zero things
+    fecg_store += np.abs(np.min(fecg_store[:, :, 0])) # to zero things
+    
+
+    data_store *= (1 / np.abs(np.max(data_store)))
+    fecg_store[:, :, 0] *= (1 / np.abs(np.max(fecg_store[:, :, 0])))
+    
     return data_store, fecg_store
 
 
@@ -219,7 +234,7 @@ predict = model.predict(data_store_predict)
 
 # %%
 
-index =  15
+index =  16
 
 # from ecgdetectors import Detectors
 

@@ -50,12 +50,6 @@ def load_data(
             time_annotations = annotations.onset
         
         
-        # Data Normalization
-        
-        filedata += np.abs(np.min(filedata)) # to zero things
-        max_absolute_value = np.max(np.abs(filedata))
-        filedata *= (1 / max_absolute_value)
-        
         # Generates masks
         mask = np.zeros(shape=file_info.times.shape)
 
@@ -95,5 +89,15 @@ def load_data(
                 data_store = np.vstack((data_store, [chunked_data]))
                 fecg_store = np.vstack((fecg_store, [chunked_fecg_data]))
     
+    
+    # Data Normalization
+     
+
+    data_store += np.abs(np.min(data_store)) # to zero things
+    fecg_store += np.abs(np.min(fecg_store[:, :, 0])) # to zero things
+    
+
+    data_store *= (1 / np.abs(np.max(data_store)))
+    fecg_store[:, :, 0] *= (1 / np.abs(np.max(fecg_store[:, :, 0])))
     
     return data_store, fecg_store
