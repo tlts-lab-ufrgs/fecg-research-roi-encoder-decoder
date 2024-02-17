@@ -32,6 +32,7 @@ def downsampling(inputs, num_filters, stride, remove_normalization = False):
 
 def conv_block(inputs, num_filters, kernel_size=3, stride=1, padding='same', activation='relu'):
     x = Conv1D(num_filters, kernel_size, strides=stride, padding=padding)(inputs)
+    # x = BatchNormalization()(x)
     x = Activation('relu')(x)
     
     return x

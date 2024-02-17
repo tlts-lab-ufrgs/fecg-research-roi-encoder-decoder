@@ -36,17 +36,28 @@ def mse_with_mask(y_true, y_pred):
 
     loss_combined =  tf.keras.losses.logcosh(y_true_mod, y_pred_mod) 
         
-    # loss_signal = tf.reduce_sum(tf.math.square(error_signal)) / N # tf.cast(N, tf.float32)
+    # loss_signal = tf.reduce_mean(tf.math.square(error_signal)) # tf.cast(N, tf.float32)
     
     loss_signal = tf.keras.losses.logcosh(y_true[:, :, 0], y_pred[:, :, 0]) 
     
     # loss_mask = tf.reduce_sum(tf.math.square(error_mask)) / N
-    loss_mask = tf.keras.losses.logcosh(y_true[:, :, 1], y_pred[:, :, 1]) 
+    
+    
+    
+    loss_mask = -tf.math.log(tf.math.reduce_sum(tf.math.sqrt(
+        tf.multiply(y_true[:, :, 1], y_pred[:, :, 1]) + 1e-20
+    )) )
+    
+    # if loss_mask < 0:
+        
+    #     loss_mask
+        # 
+    loss_mask_mse = tf.keras.losses.logcosh(y_true[:, :, 1], y_pred[:, :, 1]) 
     
     ratio_between_losses = 15 # loss_mask / loss_signal
 
     
-    loss = 0.3 * loss_combined + 0.5 * loss_mask + 0.2 * loss_signal
+    loss = 0.2 * loss_mask_mse + 0.7 * loss_combined + 0.1 * loss_signal
 
     return loss
 

@@ -74,11 +74,21 @@ def load_data(
             chunked_fecg_real_data = filedata[0, (batch): (batch + len_data)]
             chunked_fecg_binary_data = mask[(batch): (batch + len_data)]
 
+            
+            # Data Normalization
+     
+
+            chunked_data += np.abs(np.min(chunked_data)) # to zero things
+            chunked_fecg_real_data += np.abs(np.min(chunked_fecg_real_data)) # to zero things
+            
+
+            chunked_data *= (1 / np.abs(np.max(chunked_data)))
+            chunked_fecg_real_data *= (1 / np.abs(np.max(chunked_fecg_real_data)))
+            
             chunked_fecg_data = np.array([
                 chunked_fecg_real_data, 
                 chunked_fecg_binary_data
             ]).transpose()
-            
 
             if batch == 0:
 
@@ -89,15 +99,6 @@ def load_data(
                 data_store = np.vstack((data_store, [chunked_data]))
                 fecg_store = np.vstack((fecg_store, [chunked_fecg_data]))
     
-    
-    # Data Normalization
-     
 
-    data_store += np.abs(np.min(data_store)) # to zero things
-    fecg_store += np.abs(np.min(fecg_store[:, :, 0])) # to zero things
-    
-
-    data_store *= (1 / np.abs(np.max(data_store)))
-    fecg_store[:, :, 0] *= (1 / np.abs(np.max(fecg_store[:, :, 0])))
     
     return data_store, fecg_store

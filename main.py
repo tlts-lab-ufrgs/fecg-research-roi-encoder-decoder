@@ -41,10 +41,10 @@ BATCH_SIZE = 4
 
 DATA_BATCH = 4
 
-QRS_DURATION = 0.1  # seconds, max
-QRS_DURATION_STEP = 50
+QRS_DURATION = 0.2  # seconds, max
+QRS_DURATION_STEP = 100
 
-INIT_LR = 0.0001 # 0.0001
+INIT_LR = 0.001
  
 #%% Data Loading 
 
@@ -60,8 +60,8 @@ data_store, fecg_store = signal_and_mask_as_output.load_data(
 
 # plt.plot(data_store[10])
 #%%
-plt.plot(fecg_store[60, :, 0])
-plt.plot(data_store[60])
+plt.plot(fecg_store[420])
+plt.plot(data_store[420])
 
 #% Data Preprocessing
 
@@ -88,6 +88,7 @@ model = proposed_ae(input_shape, num_classes=1)
 # model.add_loss(weighted_loss(targets, out, inp))
 
 model.compile(
+    # optimizer=tf.keras.optimizers.Adam(learning_rate=INIT_LR), 
     optimizer=tf.keras.optimizers.Adam(learning_rate=INIT_LR), 
     loss=mse_with_mask, # 
     metrics=[
@@ -131,9 +132,9 @@ ax.legend()
 
 fig, ax = plt.subplots()
 
-ax.plot(history.history['val_mse_mask'], label='MSE Mask')
+ax.plot(history.history['mse_mask'], label='MSE Mask')
 
-ax.plot(history.history['val_mse_signal'], label='MSE Signal')
+ax.plot(history.history['mse_signal'], label='MSE Signal')
 
 # ax.plot(history.history['mean_squared_error'], label='MSE training')
 
@@ -199,6 +200,17 @@ def load_data_to_predict(len_data = LEN_DATA, path = DATA_PATH, qrs_duration = Q
                 chunked_fecg_binary_data
             ]).transpose()
             
+            # Data Normalization
+     
+
+            chunked_data += np.abs(np.min(chunked_data)) # to zero things
+            chunked_fecg_data += np.abs(np.min(chunked_fecg_data[:, 0])) # to zero things
+            
+
+            chunked_data *= (1 / np.abs(np.max(chunked_data)))
+            chunked_fecg_data[:, 0] *= (1 / np.abs(np.max(chunked_fecg_data[:, 0])))
+            
+            
 
             if batch == 0:
 
@@ -210,12 +222,6 @@ def load_data_to_predict(len_data = LEN_DATA, path = DATA_PATH, qrs_duration = Q
                 fecg_store = np.vstack((fecg_store, [chunked_fecg_data]))
     
     
-    data_store += np.abs(np.min(data_store)) # to zero things
-    fecg_store += np.abs(np.min(fecg_store[:, :, 0])) # to zero things
-    
-
-    data_store *= (1 / np.abs(np.max(data_store)))
-    fecg_store[:, :, 0] *= (1 / np.abs(np.max(fecg_store[:, :, 0])))
     
     return data_store, fecg_store
 
@@ -230,11 +236,11 @@ print(test)
 
 #%%
 
-predict = model.predict(data_store_predict)
+predict_training = model.predict(data_store)
 
 # %%
 
-index =  16
+index =  3
 
 # from ecgdetectors import Detectors
 
@@ -252,9 +258,56 @@ fig, ax = plt.subplots()
 # ax.plot(predict[1, :], color='orange')
 
 # ax.plot(data_store[200], alpha = 0.5)
-ax.plot(predict[index], label='predito')
+ax.plot(predict_training[index, :], label='predito')
 
-ax.plot(fecg_store_predict[index], label='real')
+ax.plot(fecg_store[index], label='real')
+
+# ax.vlines(ymin = 0, ymax = 1, x = r_peaks[0])
+
+ax.legend()
+
+
+# %%
+
+
+predict = model.predict(data_store_predict)
+#%%
+index =  15
+# from ecgdetectors import Detectors
+
+
+# detector = Detectors(1000)
+
+# r_peaks = detector.pan_tompkins_detector(predict[index, :, 0]),
+
+# print(r_peaks)
+
+
+fig, ax = plt.subplots()
+
+
+# ax.plot(predict[1, :], color='orange')
+
+# ax.plot(data_store[200], alpha = 0.5)
+ax.plot(predict[index, :, 0], label='predito')
+
+ax.plot(fecg_store_predict[index, :, 0], label='real')
+
+# ax.vlines(ymin = 0, ymax = 1, x = r_peaks[0])
+
+ax.legend()
+
+#%%
+
+fig, ax = plt.subplots()
+
+
+# ax.plot(predict[1, :], color='orange')
+
+# ax.plot(data_store[200], alpha = 0.5)
+ax.plot(predict[index, :, 1], label='predito')
+
+ax.plot(fecg_store_predict[index, :, 1], label='real')
 
 # ax.vlines(ymin = 0, ymax = 1, x = r_peaks[0])
 
