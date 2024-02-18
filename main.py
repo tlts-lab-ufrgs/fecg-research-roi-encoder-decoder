@@ -44,7 +44,7 @@ DATA_BATCH = 4
 QRS_DURATION = 0.2  # seconds, max
 QRS_DURATION_STEP = 100
 
-INIT_LR = 0.001
+INIT_LR = 0.005
  
 #%% Data Loading 
 
@@ -104,7 +104,7 @@ model.compile(
 #%%
 
 history = model.fit(data_store, fecg_store, 
-          epochs=250, 
+          epochs=20, 
           batch_size=BATCH_SIZE,
           validation_split=0.25,
           shuffle=True, 

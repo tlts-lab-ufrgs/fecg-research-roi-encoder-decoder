@@ -2,7 +2,10 @@
 
 import numpy as np
 import tensorflow as tf
+
 from utils.training_patience import callback as patience_callback
+from utils.lr_scheduler import callback as lr_scheduler
+
 from tensorflow.keras.layers import (
     Input, 
     Conv1D, 
@@ -19,13 +22,22 @@ class Metric:
     def __init__(self) -> None:
         pass
     
-    def mse_mask():
+    @staticmethod
+    def mse_mask(y_true, y_pred):
+
+        error_mask = y_true[:, :, 1] - y_pred[:, :, 1]
         
-        return
+        loss_mask = tf.reduce_mean(tf.math.square(error_mask))
+        
+        return loss_mask
     
-    def mse_signal():
+    def mse_signal(y_true, y_pred):
+
+        error = y_true[:, :, 0] - y_pred[:, :, 0]
         
-        return 
+        loss = tf.reduce_mean(tf.math.square(error))
+        
+        return loss
     
     def mse_combined(): 
         
@@ -54,24 +66,11 @@ class Loss:
         loss = self.w_mask * loss_mask_mse + self.w_combined * loss_combined + self.w_signal * loss_signal
 
         return loss
+            
         
-class LearningRate:
-    
-    def __init__(self) -> None:
-        self.WAIT_UNTIL = 10
-        pass
-    
-    def lr_decay(self, epoch, lr):
-        
-        if epoch < self.WAIT_UNTIL:
-            return lr
-        else:
-            return lr * tf.math.exp(-0.1)
-        
-        return
 class ProposedAE:
     
-    def __init__(self, input_shape, batch_size, init_lr, w_mask, w_signal, w_combined, training_data, ground_truth, epochs = 250, epochs_in_patience = 15):
+    def __init__(self, input_shape, batch_size, init_lr, w_mask, w_signal, w_combined, training_data, ground_truth, testing_data, ground_truth_testing, epochs = 250, epochs_in_patience = 15):
         
         self.batch_size = batch_size
         self.input_shape = input_shape
@@ -85,11 +84,13 @@ class ProposedAE:
         
         self.training_data = training_data
         self.ground_truth = ground_truth
+        self.testing_data = testing_data
+        self.ground_truth_testing = ground_truth_testing
         
         pass
     
     @staticmethod
-    def downsampling(self, inputs, num_filters, stride):
+    def downsampling(inputs, num_filters, stride):
         
         x = Conv1D(num_filters, kernel_size=1, strides=stride, padding='same')(inputs)
         x = BatchNormalization()(x)
@@ -97,9 +98,9 @@ class ProposedAE:
         return x
 
     @staticmethod
-    def conv_block(inputs, num_filters, kernel_size=3, stride=1, padding='same'):
+    def conv_block(inputs, num_filters, kernel_size=3, stride=1, padding='same', activation='relu'):
         x = Conv1D(num_filters, kernel_size, strides=stride, padding=padding)(inputs)
-        x = Activation('relu')(x)
+        x = Activation(activation)(x)
         return x
 
     def encoder_block(self, inputs, num_filters):
@@ -113,13 +114,13 @@ class ProposedAE:
         
         x = Add()([x1, reshaped_inputs])
         
-        x2 = self.onv_block(x, num_filters)
+        x2 = self.conv_block(x, num_filters)
         x2 = self.conv_block(x2, num_filters)
         
         x = Add()([x1, x2])
         return x
         
-    def decoder_block(self, inputs, skip_connection, filters_num, kernel_size=3, stride=2, output_padding=0):
+    def decoder_block(self, inputs, skip_connection, filters_num, kernel_size=3, stride=2, output_padding=0, activation="relu"):
 
         print('Decoder input', np.shape(inputs))
         
@@ -127,7 +128,7 @@ class ProposedAE:
         x = Conv1DTranspose(
             filters_num, 
             kernel_size=kernel_size, 
-            activation="relu", 
+            activation=activation, 
             strides=stride, 
             output_padding=output_padding
         )(x)
@@ -140,7 +141,7 @@ class ProposedAE:
         return x
 
 
-    def mask_decoder_block(self, x, encoder_block3, encoder_block2, encoder_block1):
+    def mask_decoder_block(self, x, encoder_block1, encoder_block2, encoder_block3, encoder_block4):
         
         x = self.conv_block(x, num_filters=512, kernel_size=2, padding='valid', activation='relu')
         x = Conv1DTranspose(
@@ -176,7 +177,7 @@ class ProposedAE:
             
         return decode_mask
 
-    def signal_decoder_block(self, x, encoder_block4, encoder_block3, encoder_block2, encoder_block1):
+    def signal_decoder_block(self, x, encoder_block1, encoder_block2, encoder_block3, encoder_block4):
 
         decoder = self.decoder_block(x, encoder_block4[:, :, 0:256], 256, kernel_size=4)
         decoder = self.decoder_block(decoder, encoder_block3[:, :, 0:128], 128, kernel_size=4)
@@ -231,26 +232,27 @@ class ProposedAE:
 
         print('Output form', np.shape(outputs))
 
-        model = tf.keras.Model(inputs=inputs, outputs=outputs, name='linknet')
-        return model
+        self.model = tf.keras.Model(inputs=inputs, outputs=outputs, name='linknet')
+        
+        
+        return
 
-    def compile(self):
+    def fit_and_evaluate(self):
         
-        model = self.linknet()
+        self.linknet()
         
-        model.compile(
-            # optimizer=tf.keras.optimizers.Adam(learning_rate=INIT_LR), 
+        self.model.compile(
             optimizer=tf.keras.optimizers.Adam(learning_rate=self.init_lr), 
-            loss=Loss(self.w_signal, self.w_signal, self.w_combined), # 
+            loss=Loss(self.w_signal, self.w_signal, self.w_combined).loss, # 
             metrics=[
                 tf.keras.metrics.RootMeanSquaredError(name='rmse'), 
                 'mean_squared_error', 
                 Metric.mse_signal, 
                 Metric.mse_mask
             ]
-            )
+        )
 
-        history = model.fit(
+        history = self.model.fit(
                 self.training_data, 
                 self.ground_truth, 
                 epochs=self.total_epochs, 
@@ -258,9 +260,14 @@ class ProposedAE:
                 validation_split=0.25,
                 shuffle=True, 
                 callbacks=[
-                    LearningRate.lr_decay(),
+                    lr_scheduler,
                     patience_callback('loss', self.epochs_in_patience)
                 ],
             )
         
-        return 
+        test = self.model.evaluate(self.testing_data, self.ground_truth_testing)
+        
+        prediction = self.model.predict(self.testing_data)
+        
+        return history, test, prediction
+    

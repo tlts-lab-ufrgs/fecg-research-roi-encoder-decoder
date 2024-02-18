@@ -1,44 +1,18 @@
-"""
-Signal and mask as output
-
-juliacremus
-Wednesday 24 jan 09h18
-"""
-
-#%% Imports
-
 import mne
 import glob
 import numpy as np
 
+from utils.gaussian_function import gaussian
 
-#%% Parameters
-
-DATA_PATH = "/home/julia/Documents/fECG_research/datasets/abdominal-and-direct-fetal-ecg-database-1.0.0/"
-LEN_DATA = 512
-QRS_DURATION = 0.1  # seconds, max
-QRS_DURATION_STEP = 50
-
-#%% Gaussian function
-
-def gaussian(x, mu, sig):
-    
-    signal = 1.0 / (np.sqrt(2.0 * np.pi) * sig) * np.exp(-np.power((x - mu) / sig, 2.0) / 2)
-    
-    return signal / np.max(signal)
-
-
-#%% Data Loading 
-
-def load_data(
-    filenames, 
-    type_of_file='edf', 
-    len_data = LEN_DATA, 
-    path = DATA_PATH, 
-    qrs_duration = QRS_DURATION, 
-    qrs_len = QRS_DURATION_STEP
+def data_resizer(    
+    filenames,
+    len_data, 
+    qrs_duration, 
+    qrs_len,
+    type_of_file='edf'
 ):
-
+    
+        # training file
     for file in filenames:
         
         # Read data and annotations
@@ -66,10 +40,7 @@ def load_data(
 
         # Resize data to be in the desire batch size
         
-        
         UPPER_LIMIT = int(np.power(2, np.round(np.log2(file_info.times.shape[0]), 0)))
-    
-        print(UPPER_LIMIT)
         
         for batch in range(0, UPPER_LIMIT, len_data):
 
@@ -97,13 +68,48 @@ def load_data(
 
             if batch == 0:
 
-                data_store = np.copy([chunked_data])
-                fecg_store = np.copy([chunked_fecg_data])
+                aECG_store = np.copy([chunked_data])
+                fECG_store = np.copy([chunked_fecg_data])
 
             else:
-                data_store = np.vstack((data_store, [chunked_data]))
-                fecg_store = np.vstack((fecg_store, [chunked_fecg_data]))
+                aECG_store = np.vstack((aECG_store, [chunked_data]))
+                fECG_store = np.vstack((fECG_store, [chunked_fecg_data]))
     
+    
+    
+    return aECG_store, fECG_store
 
+def data_loader(
+    path, 
+    len_data, 
+    qrs_duration, 
+    qrs_len,
+    leave_for_testing,
+    type_of_file='edf'
+):
     
-    return data_store, fecg_store
+    # get the filenames and filter the left out
+    
+    filenames = glob.glob(path + "*." + type_of_file)
+    
+    test_file = filenames.pop(leave_for_testing)
+
+    training_data = data_resizer(
+        filenames, 
+        len_data, 
+        qrs_duration, 
+        qrs_len, 
+        type_of_file
+    )
+    
+    testing_data = data_resizer(
+        [test_file], 
+        len_data, 
+        qrs_duration, 
+        qrs_len, 
+        type_of_file
+    )
+    
+    
+    
+    return training_data, testing_data
