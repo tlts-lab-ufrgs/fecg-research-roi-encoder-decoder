@@ -34,7 +34,7 @@ TEST_FILE = 4
 def mse_function(y_true, y_pred):
     
     mse_value = np.mean(
-        np.power(y_true - y_pred, 2)
+        np.power((y_true - y_pred), 2)
     )
     
     return mse_value
@@ -83,21 +83,24 @@ for i in results_dir:
         mse_mask += mse_mask_partial
         mse_combined += mse_combined_partial
         
-        if prediction_index == 1:
+        if prediction_index == 89:
             
             fig, ax = plt.subplots()
             
             ax.set_title(f'W mask {w_mask}, W signal {w_signal}')
             
-            ax.plot(fecg_testing_data[prediction_index], label='fECG')
-            ax.plot(prediction_data['signal'], label='Model Signal')
-            ax.plot(prediction_data['mask'], label='Model Mask')
+            # ax.plot(fecg_testing_data[prediction_index], label='fECG')
+            # ax.plot(prediction_data['signal'], label='Model Signal')
+            # ax.plot(prediction_data['mask'], label='Model Mask')
+            
+            ax.plot(fecg_roi[prediction_index], label='fECG')
+            ax.plot(prediction_data['combined'], label='Model Signal')
             
             ax.legend()
-        
-    this_row.append(mse_signal)
-    this_row.append(mse_mask)
-    this_row.append(mse_combined)
+       
+    this_row.append(mse_signal / len(result_files))
+    this_row.append(mse_mask / len(result_files))
+    this_row.append(mse_combined / len(result_files))
     
     results_rows.append(this_row)
 
