@@ -83,18 +83,18 @@ for i in results_dir:
         mse_mask += mse_mask_partial
         mse_combined += mse_combined_partial
         
-        if prediction_index == 89:
+        if prediction_index == 23:
             
             fig, ax = plt.subplots()
             
             ax.set_title(f'W mask {w_mask}, W signal {w_signal}')
             
-            # ax.plot(fecg_testing_data[prediction_index], label='fECG')
+            ax.plot(fecg_testing_data[prediction_index, :, 1], label='fECG')
             # ax.plot(prediction_data['signal'], label='Model Signal')
-            # ax.plot(prediction_data['mask'], label='Model Mask')
+            ax.plot(prediction_data['mask'], label='Model Mask')
             
-            ax.plot(fecg_roi[prediction_index], label='fECG')
-            ax.plot(prediction_data['combined'], label='Model Signal')
+            # ax.plot(fecg_roi[prediction_index], label='fECG')
+            # ax.plot(prediction_data['combined'], label='Model Signal')
             
             ax.legend()
        

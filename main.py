@@ -60,8 +60,8 @@ data_store, fecg_store = signal_and_mask_as_output.load_data(
 
 # plt.plot(data_store[10])
 #%%
-plt.plot(fecg_store[420])
-plt.plot(data_store[420])
+# plt.plot(fecg_store[1, :, 0])
+plt.plot(data_store[1])
 
 #% Data Preprocessing
 

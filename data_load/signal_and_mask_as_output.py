@@ -11,6 +11,9 @@ import mne
 import glob
 import numpy as np
 
+from signal_preprocessing.threshold import filtering_coef
+from signal_preprocessing.haar_tranform import HaarTransform
+
 
 #%% Parameters
 
@@ -18,6 +21,9 @@ DATA_PATH = "/home/julia/Documents/fECG_research/datasets/abdominal-and-direct-f
 LEN_DATA = 512
 QRS_DURATION = 0.1  # seconds, max
 QRS_DURATION_STEP = 50
+
+LEVEL = 1
+FS = 1 / 2  # just a factor
 
 #%% Gaussian function
 
@@ -27,6 +33,37 @@ def gaussian(x, mu, sig):
     
     return signal / np.max(signal)
 
+def remove_tendency(original_data, len_data):
+
+    filtered_data = np.copy(original_data)
+
+    # Remove tendency
+
+    for i in range(512):
+        
+        for j in range(4):
+         
+            haar = HaarTransform(original_data[i, :, j], LEVEL, FS)
+            details = haar.run_cascade_multiresolution_transform()
+
+                
+            # Filter coefs
+            # 'minimax', 'alice', 'han', 'universal'
+            data_filtered = filtering_coef(
+                len_data, 
+                details, 
+                LEVEL, 
+                'han', 
+                'hard'
+                )
+
+            # Recosntruct signal filtered
+            reconstruct_data = HaarTransform(data_filtered, LEVEL, FS)
+            tendency_signal = reconstruct_data.run_cascade_multiresolution_inv_transform()
+
+            filtered_data[i, :, j] -= tendency_signal
+        
+    return filtered_data
 
 #%% Data Loading 
 
@@ -78,8 +115,9 @@ def load_data(
             
             chunked_fecg_real_data = filedata[0, (batch): (batch + len_data)]
             chunked_fecg_binary_data = mask[(batch): (batch + len_data)]
-
             
+            
+        
             # Data Normalization
      
 
@@ -104,6 +142,9 @@ def load_data(
                 data_store = np.vstack((data_store, [chunked_data]))
                 fecg_store = np.vstack((fecg_store, [chunked_fecg_data]))
     
+    # remove tendencies
+    
+    data_store = remove_tendency(data_store, len_data)
 
     
     return data_store, fecg_store
