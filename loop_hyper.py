@@ -35,20 +35,28 @@ MODEL_INPUT_SHAPE = (BATCH_SIZE, LEN_BATCH, CHANNELS)
 #%% loop in variables
 
 
-for w_mask in np.arange(0.4, 1.1, 0.1):
+# for w_mask in np.arange(0.4, 1.1, 0.1):
         
-    w_signal_upper_bound = 1 - w_mask
+#     w_signal_upper_bound = 1 - w_mask
 
-    for w_signal in np.arange(0, w_signal_upper_bound + 0.1, 0.1):
+#     for w_signal in np.arange(0, w_signal_upper_bound + 0.1, 0.1):
 
-        w_combined = 1 - w_mask - w_signal
+for i in [
+    [0, 0.7], [0.2, 0.2], [0.1, 0.1, 0.3, 0.4]
+]:
+    
+    w_mask = i[0]
+    w_signal = i[1]
 
 
-        # for i in range(0, TOTAL_FILES, 1):
+    w_combined = 1 - w_mask - w_signal
+
+
+    for i in range(0, TOTAL_FILES, 1):
         
-        i = 4
+        # i = 4
 
-        prefix_id = f'LR_{UPPER_LIM_LR}-W_MASK_{w_mask}-W_SIG_{w_signal}-LEFT_{i}'
+        prefix_id = f'THIRD_TEST-LR_{UPPER_LIM_LR}-W_MASK_{w_mask}-W_SIG_{w_signal}-LEFT_{i}'
         
         print(prefix_id)
         
