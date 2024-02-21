@@ -41,10 +41,10 @@ BATCH_SIZE = 4
 
 DATA_BATCH = 4
 
-QRS_DURATION = 0.2  # seconds, max
-QRS_DURATION_STEP = 100
+QRS_DURATION = 0.1  # seconds, max
+QRS_DURATION_STEP = 50
 
-INIT_LR = 0.005
+INIT_LR = 0.0001 # 0.00005
  
 #%% Data Loading 
 
@@ -52,7 +52,7 @@ INIT_LR = 0.005
 #     len_data = LEN_DATA, path = DATA_PATH, qrs_duration = QRS_DURATION
 # )
 
-to_be_read = glob.glob(DATA_PATH + "*.edf")[0:4]
+to_be_read = glob.glob(DATA_PATH + "*.edf")[1:]
 
 data_store, fecg_store = signal_and_mask_as_output.load_data(
     to_be_read, len_data = LEN_DATA, path = DATA_PATH, qrs_duration = QRS_DURATION, qrs_len = QRS_DURATION_STEP
@@ -60,8 +60,8 @@ data_store, fecg_store = signal_and_mask_as_output.load_data(
 
 # plt.plot(data_store[10])
 #%%
-# plt.plot(fecg_store[1, :, 0])
-plt.plot(data_store[1])
+plt.plot(fecg_store[100])
+# plt.plot(data_store[1])
 
 #% Data Preprocessing
 
@@ -104,7 +104,7 @@ model.compile(
 #%%
 
 history = model.fit(data_store, fecg_store, 
-          epochs=20, 
+          epochs=250, 
           batch_size=BATCH_SIZE,
           validation_split=0.25,
           shuffle=True, 
@@ -156,7 +156,7 @@ def load_data_to_predict(len_data = LEN_DATA, path = DATA_PATH, qrs_duration = Q
     FILENAMES = glob.glob(path + "*.edf")
 
 
-    for file in [FILENAMES[4]]:
+    for file in [FILENAMES[0]]:
         
         
 
@@ -236,11 +236,11 @@ print(test)
 
 #%%
 
-predict_training = model.predict(data_store)
+predict_training = model.predict(data_store_predict)
 
 # %%
 
-index =  3
+index =  10
 
 # from ecgdetectors import Detectors
 
@@ -258,7 +258,38 @@ fig, ax = plt.subplots()
 # ax.plot(predict[1, :], color='orange')
 
 # ax.plot(data_store[200], alpha = 0.5)
-ax.plot(predict_training[index, :], label='predito')
+ax.plot(predict_training[index], label='predito')
+
+ax.plot(fecg_store_predict[index], label='real')
+
+# ax.vlines(ymin = 0, ymax = 1, x = r_peaks[0])
+
+ax.legend()
+
+
+# %%
+
+
+predict = model.predict(data_store)
+#%%
+index =  500
+# from ecgdetectors import Detectors
+
+
+# detector = Detectors(1000)
+
+# r_peaks = detector.pan_tompkins_detector(predict[index, :, 0]),
+
+# print(r_peaks)
+
+
+fig, ax = plt.subplots()
+
+
+# ax.plot(predict[1, :], color='orange')
+
+# ax.plot(data_store[200], alpha = 0.5)
+ax.plot(predict[index], label='predito')
 
 ax.plot(fecg_store[index], label='real')
 
@@ -266,52 +297,21 @@ ax.plot(fecg_store[index], label='real')
 
 ax.legend()
 
-
-# %%
-
-
-predict = model.predict(data_store_predict)
-#%%
-index =  15
-# from ecgdetectors import Detectors
-
-
-# detector = Detectors(1000)
-
-# r_peaks = detector.pan_tompkins_detector(predict[index, :, 0]),
-
-# print(r_peaks)
-
-
-fig, ax = plt.subplots()
-
-
-# ax.plot(predict[1, :], color='orange')
-
-# ax.plot(data_store[200], alpha = 0.5)
-ax.plot(predict[index, :, 0], label='predito')
-
-ax.plot(fecg_store_predict[index, :, 0], label='real')
-
-# ax.vlines(ymin = 0, ymax = 1, x = r_peaks[0])
-
-ax.legend()
-
 #%%
 
-fig, ax = plt.subplots()
+# fig, ax = plt.subplots()
 
 
-# ax.plot(predict[1, :], color='orange')
+# # ax.plot(predict[1, :], color='orange')
 
-# ax.plot(data_store[200], alpha = 0.5)
-ax.plot(predict[index, :, 1], label='predito')
+# # ax.plot(data_store[200], alpha = 0.5)
+# ax.plot(predict[index, :, 1], label='predito')
 
-ax.plot(fecg_store_predict[index, :, 1], label='real')
+# ax.plot(fecg_store_predict[index, :, 1], label='real')
 
-# ax.vlines(ymin = 0, ymax = 1, x = r_peaks[0])
+# # ax.vlines(ymin = 0, ymax = 1, x = r_peaks[0])
 
-ax.legend()
+# ax.legend()
 
 
 # %%

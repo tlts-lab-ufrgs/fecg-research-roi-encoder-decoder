@@ -24,8 +24,8 @@ DATA_PATH =  "/home/julia/Documents/fECG_research/datasets/abdominal-and-direct-
 
 CHANNELS = 4
 LEN_BATCH = 512
-QRS_DURATION = 0.2  # seconds, max
-QRS_DURATION_STEP = 100
+QRS_DURATION = 0.1  # seconds, max
+QRS_DURATION_STEP = 50
 
 TEST_FILE = 4
 
@@ -54,7 +54,7 @@ fecg_testing_data = testing_data[1]
 fecg_roi = fecg_testing_data[:, :, 0] * fecg_testing_data[:, :, 1]
 #%% concat results of the same dir
 
-results_dir = glob.glob(RESULTS_PATH + 'LR*')
+results_dir = glob.glob(RESULTS_PATH + 'RP*')
 results_rows = []
 
 for i in results_dir:
@@ -83,14 +83,14 @@ for i in results_dir:
         mse_mask += mse_mask_partial
         mse_combined += mse_combined_partial
         
-        if prediction_index in [10,50,60,70,80]:
+        if prediction_index in [89]:
             
             fig, ax = plt.subplots()
             
-            ax.set_title(f'W mask {w_mask}, W signal {w_signal}')
+            ax.set_title(f'W mask {w_mask}, W signal {w_signal} - {i.split("-")[-1]}')
             
-            ax.plot(fecg_testing_data[prediction_index, :, 1], label='fECG')
-            # ax.plot(prediction_data['signal'], label='Model Signal')
+            ax.plot(fecg_testing_data[prediction_index], label='fECG')
+            ax.plot(prediction_data['signal'], label='Model Signal')
             ax.plot(prediction_data['mask'], label='Model Mask')
             
             # ax.plot(fecg_roi[prediction_index], label='fECG')

@@ -66,7 +66,7 @@ def data_resizer(
                 chunked_fecg_binary_data
             ]).transpose()
 
-            if batch == 0:
+            if filenames.index(file) == 0 and batch == 0:
 
                 aECG_store = np.copy([chunked_data])
                 fECG_store = np.copy([chunked_fecg_data])

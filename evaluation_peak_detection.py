@@ -26,7 +26,7 @@ DATA_PATH =  "/home/julia/Documents/fECG_research/datasets/abdominal-and-direct-
 
 CHANNELS = 4
 LEN_BATCH = 512
-QRS_DURATION = 0.2  # seconds, max
+QRS_DURATION = 0.1  # seconds, max
 QRS_DURATION_STEP = 100
 
 TEST_FILE = 4

@@ -133,7 +133,7 @@ def load_data(
                 chunked_fecg_binary_data
             ]).transpose()
 
-            if batch == 0:
+            if filenames.index(file) == 0 and batch == 0:
 
                 data_store = np.copy([chunked_data])
                 fecg_store = np.copy([chunked_fecg_data])
@@ -144,7 +144,7 @@ def load_data(
     
     # remove tendencies
     
-    data_store = remove_tendency(data_store, len_data)
+    # data_store = remove_tendency(data_store, len_data)
 
     
     return data_store, fecg_store
