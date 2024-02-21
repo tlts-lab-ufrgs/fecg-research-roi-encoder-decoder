@@ -4,6 +4,8 @@ import os
 import numpy as np
 import pandas as pd
 import tensorflow as tf
+from keras import backend as K
+from numba import cuda
 
 from data_load.load_leave_one_out import data_loader
 from models.ae_proposed import ProposedAE
@@ -35,7 +37,7 @@ MODEL_INPUT_SHAPE = (BATCH_SIZE, LEN_BATCH, CHANNELS)
 #%% loop in variables
 
 
-for w_mask in np.arange(0.0, 0.2, 0.1):
+for w_mask in np.arange(0.3, 1.1, 0.1):
         
     w_signal_upper_bound = 1 - w_mask
 
@@ -80,7 +82,7 @@ for w_mask in np.arange(0.0, 0.2, 0.1):
                 training_data=training_data[0], 
                 ground_truth=training_data[1],
                 testing_data=testing_data[0], 
-                ground_truth_testing=testing_data[1]
+                ground_truth_testing=testing_data[1], 
             )
 
             history, testing_metrics, predict = model.fit_and_evaluate()
@@ -109,4 +111,14 @@ for w_mask in np.arange(0.0, 0.2, 0.1):
             del model
             del history
             del predict  
+            
+            K.clear_session()
+            tf.compat.v1.reset_default_graph()
+            # try:
+            #     cuda.select_device(0)
+            #     cuda.close()
+            # except:
+            #     print('cuda retunr an error')
+
+
 # %%

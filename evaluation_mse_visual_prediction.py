@@ -41,28 +41,42 @@ def mse_function(y_true, y_pred):
 
 #%% data load
 
-_, testing_data = data_loader(
+testing_data = {}
+
+for i in range(5):
+    
+    _, this_testing_data = data_loader(
                 DATA_PATH, 
                 LEN_BATCH, 
                 QRS_DURATION, 
                 QRS_DURATION_STEP,
-                leave_for_testing=TEST_FILE,
+                leave_for_testing=i,
                 type_of_file='edf'
             )
 
-fecg_testing_data = testing_data[1]
-fecg_roi = fecg_testing_data[:, :, 0] * fecg_testing_data[:, :, 1]
+    fecg_testing_data = this_testing_data[1]
+    fecg_roi = fecg_testing_data[:, :, 0] * fecg_testing_data[:, :, 1]
+    
+    
+    testing_data[i] = {
+        'signal': fecg_testing_data,
+        'roi_signal': fecg_roi
+    }
+
+
 #%% concat results of the same dir
 
-results_dir = glob.glob(RESULTS_PATH + 'RP*')
+results_dir = glob.glob(RESULTS_PATH + 'QRS*')
 results_rows = []
 
 for i in results_dir:
     
     w_mask = float(i.split('-W_MASK_')[1].split('-')[0])
     w_signal = float(i.split('-W_SIG_')[1].split('-')[0])
+
+    test_file = int(i.split("-")[-1].replace('LEFT_', ''))
     
-    this_row = [w_mask, w_signal]
+    this_row = [test_file, w_mask, w_signal]
 
     result_files = glob.glob(i + '/' + '*prediction_*')
     
@@ -71,29 +85,30 @@ for i in results_dir:
     for file in result_files:
         
         prediction_index = int(file.split('-prediction_')[1].split('-')[0].replace('.csv', ''))
+      
         
         prediction_data = pd.read_csv(file, names=['signal', 'mask'])
         prediction_data['combined'] = prediction_data['signal'] * prediction_data['mask']
         
-        mse_signal_partial = mse_function(fecg_testing_data[prediction_index, :, 0], prediction_data['signal'])
-        mse_mask_partial = mse_function(fecg_testing_data[prediction_index, :, 1], prediction_data['mask'])
-        mse_combined_partial = mse_function(fecg_roi[prediction_index], prediction_data['combined'])
+        mse_signal_partial = mse_function(testing_data[test_file]['signal'][prediction_index, :, 0], prediction_data['signal'])
+        mse_mask_partial = mse_function(testing_data[test_file]['signal'][prediction_index, :, 1], prediction_data['mask'])
+        mse_combined_partial = mse_function(testing_data[test_file]['roi_signal'][prediction_index], prediction_data['combined'])
            
         mse_signal += mse_signal_partial
         mse_mask += mse_mask_partial
         mse_combined += mse_combined_partial
         
-        if prediction_index in [89]:
+        if prediction_index == 33:
             
             fig, ax = plt.subplots()
             
-            ax.set_title(f'W mask {w_mask}, W signal {w_signal} - {i.split("-")[-1]}')
+            ax.set_title(f'W mask {w_mask}, W signal {w_signal} - {test_file}')
             
-            ax.plot(fecg_testing_data[prediction_index], label='fECG')
+            ax.plot(testing_data[test_file]['signal'][prediction_index], label='fECG')
             ax.plot(prediction_data['signal'], label='Model Signal')
             ax.plot(prediction_data['mask'], label='Model Mask')
             
-            # ax.plot(fecg_roi[prediction_index], label='fECG')
+            # ax.plot(testing_data[test_file]['roi_signal'][prediction_index], label='fECG')
             # ax.plot(prediction_data['combined'], label='Model Signal')
             
             ax.legend()
@@ -107,13 +122,16 @@ for i in results_dir:
 #%% form data frame
 
 metrics_dataframe = pd.DataFrame(
-    np.array(results_rows), columns=['w_mask', 'w_signal', 'mse_signal', 'mse_mask', 'mse_combined']
+    np.array(results_rows), columns=['test_file', 'w_mask', 'w_signal', 'mse_signal', 'mse_mask', 'mse_combined']
 )
 
 #%%
 
-metrics_dataframe.sort_values(by = 'mse_mask', inplace=True)
+metrics_dataframe.sort_values(by = ['mse_mask'], inplace=True)
 
+#%%
+
+a = metrics_dataframe.groupby(['w_mask', 'w_signal']).mean()
 #%%
 
 import seaborn as sns
@@ -121,4 +139,10 @@ import seaborn as sns
 sns.heatmap(metrics_dataframe[['w_mask', 'w_signal']])
 # %%
 
+""" 
+[0.1, 0.6],
+[0.1, 0.2]
+[0.2, 0.2]
+
+"""
 
