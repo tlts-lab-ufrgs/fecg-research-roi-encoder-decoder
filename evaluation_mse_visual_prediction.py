@@ -34,7 +34,7 @@ TEST_FILE = 4
 def mse_function(y_true, y_pred):
     
     mse_value = np.mean(
-        np.power((y_true - y_pred), 2)
+        np.abs((y_true - y_pred)) # , 2)
     )
     
     return mse_value
@@ -66,7 +66,7 @@ for i in range(5):
 
 #%% concat results of the same dir
 
-results_dir = glob.glob(RESULTS_PATH + 'QRS*')
+results_dir = glob.glob(RESULTS_PATH + '4CH_DAUG_QRStime_0.1-LR_0.0001-*')
 results_rows = []
 
 for i in results_dir:
@@ -98,20 +98,55 @@ for i in results_dir:
         mse_mask += mse_mask_partial
         mse_combined += mse_combined_partial
         
-        if prediction_index == 33:
+        if prediction_index in [1, 15, 16, 17, 18, 19, 56, 89, 111]:
             
             fig, ax = plt.subplots()
             
-            ax.set_title(f'W mask {w_mask}, W signal {w_signal} - {test_file}')
+            ax.set_title('')
+            # ax.set_title(f'W mask {w_mask}, W signal {w_signal} - {test_file}')
             
-            ax.plot(testing_data[test_file]['signal'][prediction_index], label='fECG')
-            ax.plot(prediction_data['signal'], label='Model Signal')
-            ax.plot(prediction_data['mask'], label='Model Mask')
+ 
+            ax.plot(
+                testing_data[test_file]['signal'][prediction_index, :, 0], 
+                label='Ground truth signal', 
+                )
+            
+            
+            ax.plot(prediction_data['signal'], label='Predicted Signal')
+            
+            ax1 = ax.twinx()
+            
+            ax1.plot(prediction_data['mask'], label='Predicted RoI', color='purple')
+            ax1.plot(
+                testing_data[test_file]['signal'][prediction_index, :, 1], 
+                label='Ground truth RoI', 
+                color='green'
+                )
+            
+            ax.set_xlabel('Time steps')
+            ax.set_ylabel('fECG normalized')
+            ax1.set_ylabel('RoI signal')
+            
+            # Shrink current axis's height by 10% on the bottom
+            box = ax.get_position()
+            ax.set_position([box.x0, box.y0 + box.height * 0.1,
+                            box.width, box.height * 0.9])
+
+            # Put a legend below current axis
+            ax.legend(loc='upper center', bbox_to_anchor=(0.1, -0.15),
+                    fancybox=True, shadow=True, ncol=2)
+            
+            ax1.legend(loc='upper center', bbox_to_anchor=(0.9, -0.15),
+                    fancybox=True, shadow=True, ncol=2)
+            
+            
+            
+            ax.grid()
             
             # ax.plot(testing_data[test_file]['roi_signal'][prediction_index], label='fECG')
             # ax.plot(prediction_data['combined'], label='Model Signal')
             
-            ax.legend()
+            # ax.legend()
        
     this_row.append(mse_signal / len(result_files))
     this_row.append(mse_mask / len(result_files))
@@ -132,17 +167,5 @@ metrics_dataframe.sort_values(by = ['mse_mask'], inplace=True)
 #%%
 
 a = metrics_dataframe.groupby(['w_mask', 'w_signal']).mean()
+
 #%%
-
-import seaborn as sns
-
-sns.heatmap(metrics_dataframe[['w_mask', 'w_signal']])
-# %%
-
-""" 
-[0.1, 0.6],
-[0.1, 0.2]
-[0.2, 0.2]
-
-"""
-

@@ -42,23 +42,20 @@ def linknet_block(inputs, num_filters, activation='relu'):
     x1 = conv_block(x1, num_filters, activation=activation)
  
     reshaped_inputs = downsampling(inputs, num_filters, stride=2)
-    
-    print('Reshaped inputs', np.shape(reshaped_inputs))
+
     
     x = Add()([x1, reshaped_inputs])
     
     x2 = conv_block(x, num_filters, activation=activation)
     x2 = conv_block(x2, num_filters, activation=activation)
-    
     x = Add()([x1, x2])
     
     return x
 
 def decoder_block(inputs, skip_connection, filters_num, kernel_size=3, stride=2, output_padding=0, activation='relu'):
-
-    print('Decoder input', np.shape(inputs))
     
     x = conv_block(inputs, num_filters=filters_num, kernel_size=2, padding='valid', activation=activation)
+    print('Decoder', np.shape(x))
     x = Conv1DTranspose(
         filters_num, 
         kernel_size=kernel_size, 
@@ -66,11 +63,12 @@ def decoder_block(inputs, skip_connection, filters_num, kernel_size=3, stride=2,
         strides=stride, 
         output_padding=output_padding
     )(x)
+    print('Decoder', np.shape(x))
     x = conv_block(x, num_filters=filters_num, kernel_size=1, padding='valid', activation = activation) 
-    
+    print('Decoder', np.shape(x))
     x = Add()([x, skip_connection])
-    
-    print('x signals', np.shape(x))
+    print('Decoder', np.shape(x))
+    # print('x signals', np.shape(x))
 
     return x
 
@@ -93,11 +91,15 @@ def mask_decoder_block(x, encoder_block1, encoder_block2, encoder_block3, encode
     )(x)
     x = conv_block(x, num_filters=512, kernel_size=1, padding='valid', activation='relu')
     
+    print('M - Decoder out', np.shape(x))
+    
     decoder = decoder_block(x, encoder_block3, 256, kernel_size=4, activation='relu')
+    print('M - Decoder out', np.shape(decoder))
     decoder = decoder_block(decoder, encoder_block2, 128, kernel_size=4, activation='relu')
+    print('M - Decoder out', np.shape(decoder))
     decoder = decoder_block(decoder, encoder_block1, 64, kernel_size=4, activation='relu')
     
-    
+    print('M - Decoder out', np.shape(decoder))
 
     # Last upsampling
     x = conv_block(decoder, num_filters=512, kernel_size=2, padding='valid', activation='relu')
@@ -110,6 +112,7 @@ def mask_decoder_block(x, encoder_block1, encoder_block2, encoder_block3, encode
     )(x)
     x = conv_block(x, num_filters=16, kernel_size=1, padding='valid', activation='relu')
     
+    print('M - Decoder out', np.shape(x))
     
     x = conv_block(x, num_filters=1, kernel_size=1, stride=1)
                 
@@ -137,9 +140,13 @@ def signal_decoder_block(x, encoder_block1, encoder_block2, encoder_block3, enco
     # decoder = decoder_block(decoder, encoder_block1, 64, kernel_size=4, activation='relu')
     
     decoder = decoder_block(x, encoder_block4[:, :, 0:256], 256, kernel_size=4)
+    print('S - Decoder out', np.shape(decoder))
     decoder = decoder_block(decoder, encoder_block3[:, :, 0:128], 128, kernel_size=4)
+    print('S - Decoder out', np.shape(decoder))
     decoder = decoder_block(decoder, encoder_block2[:, :, 0:64], 64, kernel_size=4)
+    print('S - Decoder out', np.shape(decoder))
     decoder = decoder_block(decoder, encoder_block1[:, :, 0:32], 32, kernel_size=4)
+    print('S - Decoder out', np.shape(decoder))
 
    
     x = conv_block(decoder, num_filters=512, kernel_size=2, padding='valid', activation='relu')
@@ -153,6 +160,7 @@ def signal_decoder_block(x, encoder_block1, encoder_block2, encoder_block3, enco
     )(x)
     x = conv_block(x, num_filters=64, kernel_size=1, padding='valid', activation='relu')
     
+    print('S - Decoder out', np.shape(x))
     
     x = conv_block(x, num_filters=1, kernel_size=1, stride=1)
                 

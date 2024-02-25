@@ -12,8 +12,21 @@ FILENUMBER = '3'
 
 PATH = '/home/julia/Documents/fECG_research/datasets/ninfea-non-invasive-multimodal-foetal-ecg-doppler-dataset-for-antenatal-cardiology-research-1.0.0/'
 
+
+PATH = '/home/julia/Documents/fECG_research/datasets/ninfea-non-invasive-multimodal-foetal-ecg-doppler-dataset-for-antenatal-cardiology-research-1.0.0/'
+
+
+file = '/home/julia/Documents/fECG_research/datasets/fetal-ecg-synthetic-database-1.0.0/sub09/snr00dB/sub09_snr00dB_l2_c5_fecg1'
+
+#%% annotation
+
+annotation = wfdb.io.rdann(
+    '/home/julia/Documents/fECG_research/datasets/fetal-ecg-synthetic-database-1.0.0/sub09/snr00dB/sub09_snr00dB_l2_c5_fecg1', 
+    extension='qrs')
+
+
 #%%
-record = wfdb.rdrecord(f'{PATH}wfdb_format_ecg_and_respiration/{FILENUMBER}') 
+record = wfdb.rdrecord(file) 
 # wfdb.plot_wfdb(record=record, title='Record a103l from PhysioNet Challenge 2015') 
 
 
