@@ -37,92 +37,92 @@ MODEL_INPUT_SHAPE = (BATCH_SIZE, LEN_BATCH, CHANNELS)
 #%% loop in variables
 
 
-for w_mask in np.arange(0.8, 1.1, 0.1):
+# for w_mask in np.arange(0.8, 1.1, 0.1):
         
-    w_signal_upper_bound = 1 - w_mask
+#     w_signal_upper_bound = 1 - w_mask
     
-    w_mask=0.5
+#     w_mask=0.5
 
-    for w_signal in np.arange(0.5, w_signal_upper_bound + 0.1, 0.1):
+#     for w_signal in np.arange(0.5, w_signal_upper_bound + 0.1, 0.1):
 
-# for i in [
-#     [0, 0.7], [0.2, 0.2], [0.1, 0.1], [0.3, 0.4]
-# ]:
+# # for i in [
+# #     [0, 0.7], [0.2, 0.2], [0.1, 0.1], [0.3, 0.4]
+# # ]:
     
-    # w_mask = i[0]
-    # w_signal = i[1]
+#     # w_mask = i[0]
+#     # w_signal = i[1]
 
-        w_mask = 0.2
-        w_signal = 0.1
-        w_combined = 1 - w_mask - w_signal
-
-
-        for i in range(0, TOTAL_FILES, 1):
-            
-            # i = 4
-
-            prefix_id = f'4CH_DAUG_QRStime_0.1-LR_{UPPER_LIM_LR}-W_MASK_{w_mask}-W_SIG_{w_signal}-LEFT_{i}'
-            
-            
-            print(prefix_id)
-            
-
-            training_data, testing_data = data_loader(
-                    DATA_PATH, 
-                    LEN_BATCH, 
-                    QRS_DURATION, 
-                    QRS_DURATION_STEP,
-                    leave_for_testing=i,
-                    type_of_file='edf'
-            )
-
-            model = ProposedAE(
-                MODEL_INPUT_SHAPE, 
-                BATCH_SIZE, 
-                UPPER_LIM_LR, 
-                w_mask, 
-                w_signal, 
-                w_combined, 
-                training_data=training_data[0], 
-                ground_truth=training_data[1],
-                testing_data=testing_data[0], 
-                ground_truth_testing=testing_data[1], 
-            )
-
-            history, testing_metrics, predict = model.fit_and_evaluate()
+w_mask = 0.3
+w_signal = 0.3
+w_combined = 1 - w_mask - w_signal
 
 
-            print(prefix_id)
-            print(testing_metrics)
+for i in range(TOTAL_FILES - 1, -1, -1):
+    
+    # i = 4
+
+    prefix_id = f'280224_CUTTED_CHANNEL_VAL_LOSS_DROPOUT_LR_{UPPER_LIM_LR}-W_MASK_{w_mask}-W_SIG_{w_signal}-LEFT_{i}'
+    
+    
+    print(prefix_id)
+    
+
+    training_data, testing_data = data_loader(
+            DATA_PATH, 
+            LEN_BATCH, 
+            QRS_DURATION, 
+            QRS_DURATION_STEP,
+            leave_for_testing=i,
+            type_of_file='edf'
+    )
+
+    model = ProposedAE(
+        MODEL_INPUT_SHAPE, 
+        BATCH_SIZE, 
+        UPPER_LIM_LR, 
+        w_mask, 
+        w_signal, 
+        w_combined, 
+        training_data=training_data[0], 
+        ground_truth=training_data[1],
+        testing_data=testing_data[0], 
+        ground_truth_testing=testing_data[1], 
+    )
+
+    history, testing_metrics, predict = model.fit_and_evaluate()
 
 
-            # save things
+    print(prefix_id)
+    print(testing_metrics)
 
-            this_dir = os.path.join(RESULTS_PATH, prefix_id)
+
+    # save things
+
+    this_dir = os.path.join(RESULTS_PATH, prefix_id)
 
 
-            os.mkdir(this_dir)
+    os.mkdir(this_dir)
 
-            pd.DataFrame.from_dict(history.history).to_csv(this_dir + '/' + prefix_id + '-training_history.csv')
+    pd.DataFrame.from_dict(history.history).to_csv(this_dir + '/' + prefix_id + '-training_history.csv')
 
-            index = 0
-            for batch_pred in predict:
-                np.savetxt(this_dir + '/' + prefix_id + f'-prediction_{index}.csv', batch_pred, delimiter=',')
-                index += 1
+    index = 0
+    for batch_pred in predict:
+        np.savetxt(this_dir + '/' + prefix_id + f'-prediction_{index}.csv', batch_pred, delimiter=',')
+        index += 1
 
-            del training_data
-            del testing_data
-            del model
-            del history
-            del predict  
-            
-            K.clear_session()
-            tf.compat.v1.reset_default_graph()
-            # try:
-            #     cuda.select_device(0)
-            #     cuda.close()
-            # except:
-            #     print('cuda retunr an error')
+    del training_data
+    del testing_data
+    del model
+    del history
+    del predict  
+    
+    K.clear_session()
+    tf.compat.v1.reset_default_graph()
+    # try:
+    #     cuda.select_device(0)
+    #     cuda.close()
+    # except:
+    #     print('cuda retunr an error')
 
 
 # %%

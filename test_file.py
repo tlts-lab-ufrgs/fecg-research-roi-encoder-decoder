@@ -316,3 +316,142 @@ ax.legend()
 
 
 # %%
+
+import pandas as pd
+
+# results/4CH_MOD-LOSS_SCH-MOD-4_DATA-AUG-3_QRStime_0.1-LR_0.0001-W_MASK_0.3-W_SIG_0.1-LEFT_4/4CH_MOD-LOSS_SCH-MOD-4_DATA-AUG-3_QRStime_0.1-LR_0.0001-W_MASK_0.3-W_SIG_0.1-LEFT_4-training_history.csv
+
+filename = '/home/julia/Documents/fECG_research/research_dev/autoencoder_with_mask/results/280224_CUTTED_CHANNEL_VAL_LOSS_LR_0.0001-W_MASK_0.3-W_SIG_0.3-LEFT_0/280224_CUTTED_CHANNEL_VAL_LOSS_LR_0.0001-W_MASK_0.3-W_SIG_0.3-LEFT_0-training_history.csv'
+
+data = pd.read_csv(filename)
+#%%
+
+import matplotlib.pyplot as plt
+
+
+plt.plot(data['loss'], label='loss')
+plt.plot(data['val_loss'], label='val loss')
+plt.plot(data['mse_signal'], label='mse siG')
+plt.plot(data['mse_mask'], label='mask')
+
+plt.legend()
+
+# %%
+
+
+import numpy as np
+
+def read_binary_file(ifname=None):
+    if ifname is None:
+        from tkinter import Tk, filedialog
+        root = Tk()
+        root.withdraw()
+        ifname = filedialog.askopenfilename(filetypes=[('Binary files', '*.bin')])
+
+    fs = 0
+    x = np.array([])
+
+    try:
+        with open(ifname, 'rb') as fileID:
+            fs = np.frombuffer(fileID.read(8), dtype='float64', count=1, offset=0, )[0]
+            rows = np.frombuffer(fileID.read(8), dtype='uint64', count=1, offset=0, )[0]
+            cols = np.frombuffer(fileID.read(8), dtype='float64', count=1, offset=0, )[0]
+            data = np.frombuffer(fileID.read(), dtype='float64', count=int(rows*cols), offset=0)
+            fileID.close()
+
+            if len(data) == int(rows * cols):
+                x = data.reshape((int(rows), int(cols)), order='F')  # 'F' for column-wise order
+                status = 0
+            else:
+                status = -1
+    except IOError:
+        status = -2
+
+    return x, fs, status
+
+#%%
+
+filename = '/home/julia/Documents/fECG_research/datasets/ninfea-non-invasive-multimodal-foetal-ecg-doppler-dataset-for-antenatal-cardiology-research-1.0.0/bin_format_ecg_and_respiration/1.bin'
+
+x, fs, status = read_binary_file(filename)
+# %%
+
+import os
+import numpy as np
+import pandas as pd
+import tensorflow as tf
+from keras import backend as K
+from numba import cuda
+
+from data_load.load_leave_one_out import data_loader
+
+# Range in learning rate
+UPPER_LIM_LR = 0.0001
+LOWER_LIMIT_LR = 0.00098
+LR_STEP = 0.00
+
+# batch size
+BATCH_SIZE=4
+
+# files 
+TOTAL_FILES = 5
+
+RESULTS_PATH = "/home/julia/Documents/fECG_research/research_dev/autoencoder_with_mask/results/"
+DATA_PATH =  "/home/julia/Documents/fECG_research/datasets/abdominal-and-direct-fetal-ecg-database-1.0.0/"
+
+CHANNELS = 4
+LEN_BATCH = 512
+QRS_DURATION = 0.1  # seconds, max
+QRS_DURATION_STEP = 50
+
+MODEL_INPUT_SHAPE = (BATCH_SIZE, LEN_BATCH, CHANNELS)
+
+training_data, testing_data = data_loader(
+        DATA_PATH, 
+        512, 
+        QRS_DURATION, 
+        QRS_DURATION_STEP,
+        leave_for_testing=4,
+        type_of_file='edf'
+)
+
+
+# %%
+
+import mne
+import glob
+import numpy as np
+import matplotlib.pyplot as plt
+
+
+file = '/home/julia/Documents/fECG_research/datasets/abdominal-and-direct-fetal-ecg-database-1.0.0/r10.edf'
+
+file_info = mne.io.read_raw_edf(file)
+raw_data = file_info.get_data()
+annotations = mne.read_annotations(file)
+time_annotations = annotations.onset
+
+#%%
+
+i = 200000
+
+lim_max = 300000
+
+delta = 2048
+
+while i < lim_max - delta:
+    
+    fig, ax = plt.subplots(5, 1)
+    
+    ax[0].set_title(f'{i / 512}')
+    
+    ax[0].plot(raw_data[1, i : (i+delta)], color='black')
+    ax[1].plot(raw_data[2, i : (i+delta)], color='blue')
+    ax[2].plot(raw_data[3, i : (i+delta)], color='green')
+    ax[3].plot(raw_data[4, i : (i+delta)], color='orange')
+    ax[4].plot(raw_data[0, i : (i+delta)], color='green')
+    
+    i += delta
+
+
+# %%

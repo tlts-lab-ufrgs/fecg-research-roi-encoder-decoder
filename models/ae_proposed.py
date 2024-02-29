@@ -15,8 +15,63 @@ from tensorflow.keras.layers import (
     Add, 
     Conv1DTranspose, 
     UpSampling1D, 
-    Reshape
+    Reshape,
+    Dropout
 )
+
+
+def add_baseline_wandering(x, num_components=5, amplitude=1, fs=1000):
+    t = np.arange(len(x)) / fs
+    baseline_wandering = np.zeros_like(x)
+
+    for _ in range(int(np.random.uniform(low=0, high=num_components))):
+        frequency = np.random.uniform(low=0.1, high=1)  # Random low frequency
+        phase = np.random.uniform(0, 2 * np.pi)  # Random phase
+        component = amplitude * np.sin(2 * np.pi * frequency * t + phase)
+        baseline_wandering += component
+
+    x_with_baseline = x + baseline_wandering
+    
+    max_baseline = np.max(x_with_baseline) if np.max(x_with_baseline) != 0 else 1e-7
+    
+    # normalization
+    x_with_baseline = x_with_baseline / max_baseline
+    
+    return x_with_baseline
+
+class CustomDataAugmentation(tf.keras.layers.Layer):
+    def __init__(self, num_components=15, amplitude=1, fs=1000, **kwargs):
+        super(CustomDataAugmentation, self).__init__(**kwargs)
+        self.num_components = num_components
+        self.amplitude = amplitude
+        self.fs = fs
+
+    def call(self, inputs, training=None):
+        if training:
+            # baseline input
+            augmented_inputs = tf.numpy_function(add_baseline_wandering, [inputs, self.num_components, self.amplitude, self.fs], tf.float32)   
+                        
+            # gaussian noise
+            mu = 0
+            sigma = 0.1
+            noise = 0.1 * np.random.normal(mu, sigma, size=np.shape(augmented_inputs))    
+            augmented_inputs += noise
+            
+            # cutoff 
+            
+            channel_to_cutoff = np.random.randint(-1, 4)
+            if channel_to_cutoff != -1:
+                augmented_inputs[:, :, channel_to_cutoff] = np.zeros_like(channel_to_cutoff)
+                   
+                        
+            return augmented_inputs
+        else:
+            return inputs
+
+    def get_config(self):
+        config = super(CustomDataAugmentation, self).get_config()
+        config.update({'num_components': self.num_components, 'amplitude': self.amplitude, 'fs': self.fs})
+        return config
 
 class Metric: 
     def __init__(self) -> None:
@@ -56,10 +111,21 @@ class Loss:
     def loss(self, y_true, y_pred):
         
         y_true_mod = tf.multiply(y_true[:, :, 0], y_true[:, :, 1])
-        y_pred_mod = tf.multiply(y_pred[:, :, 0], y_pred[:, :, 1])
+        # y_pred_mod = tf.multiply(y_pred[:, :, 0], y_pred[:, :, 1])
+        
+        y2_pred_combined = tf.multiply(y_pred[:, :, 0], y_true[:, :, 1])
+        y1_pred_combined = tf.multiply(y_true[:, :, 0], y_pred[:, :, 1])
+        
+        y_pred_combined = y1_pred_combined + y2_pred_combined
 
         
-        loss_combined =  tf.keras.losses.logcosh(y_true_mod, y_pred_mod) 
+        # loss_combined =  tf.keras.losses.logcosh(y_true_mod, y_pred_combined) 
+        
+        loss_combined = (
+            tf.keras.losses.logcosh(y_true_mod, y2_pred_combined) + 
+            tf.keras.losses.logcosh(y_true_mod, y1_pred_combined)
+        )
+        
         loss_signal = tf.keras.losses.logcosh(y_true[:, :, 0], y_pred[:, :, 0]) 
         loss_mask_mse = tf.keras.losses.logcosh(y_true[:, :, 1], y_pred[:, :, 1]) 
         
@@ -170,6 +236,7 @@ class ProposedAE:
         )(x)
         x = self.conv_block(x, num_filters=16, kernel_size=1, padding='valid', activation='relu')
         
+        print(np.shape(x))
         
         x = self.conv_block(x, num_filters=1, kernel_size=1, stride=1)
                     
@@ -184,7 +251,7 @@ class ProposedAE:
         decoder = self.decoder_block(decoder, encoder_block2[:, :, 0:64], 64, kernel_size=4)
         decoder = self.decoder_block(decoder, encoder_block1[:, :, 0:32], 32, kernel_size=4)
 
-    
+
         x = self.conv_block(decoder, num_filters=512, kernel_size=2, padding='valid', activation='relu')
         
         x = Conv1DTranspose(
@@ -196,6 +263,7 @@ class ProposedAE:
         )(x)
         x = self.conv_block(x, num_filters=64, kernel_size=1, padding='valid', activation='relu')
         
+        print(np.shape(x))
         
         x = self.conv_block(x, num_filters=1, kernel_size=1, stride=1)
                     
@@ -206,25 +274,33 @@ class ProposedAE:
     def linknet(self): 
         inputs = Input(batch_shape=self.input_shape)
 
+        inputs = CustomDataAugmentation(num_components=15, amplitude=0.1, fs=1000)(inputs)
+        
+        
+        inputs = Dropout(0.5)(inputs)
         # Encoder
         encoder_block1 = self.encoder_block(inputs, num_filters=64)
         print('Encoder Block 1', np.shape(encoder_block1))
+        encoder_block1 = Dropout(0.2)(encoder_block1)
 
         encoder_block2 = self.encoder_block(encoder_block1, num_filters=128)
         print('Encoder Block 2', np.shape(encoder_block2))
+        encoder_block2 = Dropout(0.2)(encoder_block2)
 
         encoder_block3 = self.encoder_block(encoder_block2, num_filters=256)
         print('Encoder Block 3', np.shape(encoder_block3))
+        encoder_block3 = Dropout(0.2)(encoder_block3)
 
         encoder_block4 = self.encoder_block(encoder_block3, num_filters=512)
         print('Encoder Block 4', np.shape(encoder_block4))
+        encoder_block4 = Dropout(0.2)(encoder_block4)
 
         bottleneck = self.encoder_block(encoder_block4, num_filters=1024)
         print('Bottle neck', np.shape(bottleneck))
 
     
-        mask_decoded = self.mask_decoder_block(bottleneck[:, :, 512:1024], encoder_block1, encoder_block2, encoder_block3, encoder_block4)
-        signal_decoded = self.signal_decoder_block(bottleneck[:, :, 0:512], encoder_block1, encoder_block2, encoder_block3, encoder_block4)
+        mask_decoded = self.mask_decoder_block(bottleneck[:, :, 256:512], encoder_block1, encoder_block2, encoder_block3, encoder_block4)
+        signal_decoded = self.signal_decoder_block(bottleneck[:, :, 0:256], encoder_block1, encoder_block2, encoder_block3, encoder_block4)
 
         # Output
         outputs = tf.concat([signal_decoded, mask_decoded], 2)
@@ -257,7 +333,8 @@ class ProposedAE:
                 self.ground_truth, 
                 epochs=self.total_epochs, 
                 batch_size=self.batch_size,
-                validation_split=0.25,
+                validation_data=(self.testing_data, self.ground_truth_testing),
+                # validation_split=0.20,
                 shuffle=True, 
                 callbacks=[
                     lr_scheduler,
@@ -265,9 +342,16 @@ class ProposedAE:
                 ],
             )
         
-        test = self.model.evaluate(self.testing_data, self.ground_truth_testing)
-        
-        prediction = self.model.predict(self.testing_data)
-        
-        return history, test, prediction
+        if self.testing_data is None:
+            return history, [], []
+        else:
+            test = self.model.evaluate(self.testing_data, self.ground_truth_testing)
+            
+            prediction = self.model.predict(self.testing_data)
+            
+            return history, test, prediction
     
+    def save(self, path_dir):
+        
+        self.model.save(path_dir)
+        

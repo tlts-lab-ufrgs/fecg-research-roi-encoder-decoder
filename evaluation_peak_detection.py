@@ -76,6 +76,7 @@ TEST_FILE = 4
 
 annotations_data = {}
 fecg_real_data = {}
+testing_data = {}
 
 filenames = glob.glob(DATA_PATH + '/*.edf')
 
@@ -88,38 +89,14 @@ for file in glob.glob(DATA_PATH + '/*.edf'):
     
     fecg_real_data[f'{filenames.index(file)}'] = filedata[0]
     annotations_data[f'{filenames.index(file)}'] = annotations.onset
-  
-#%%
 
-for file in filenames:
-    
-    file_info = mne.io.read_raw_edf(file)
-    filedata = file_info.get_data()
-
-    fig, ax = plt.subplots(5, 1)
-    
-    ax[0].plot(filedata[0], label='fECG')
-    ax[1].plot(filedata[1], label='aECG 1')
-    ax[2].plot(filedata[2], label='aECG 2')
-    ax[3].plot(filedata[3], label='aECG 3')
-    ax[4].plot(filedata[4], label='aECG 4')
-    
-    # fig, ax = plt.subplots()
-    
-    # ax.plot(filedata)
-    
-#%%
-
-testing_data = {}
-
-for i in range(5):
     
     _, this_testing_data = data_loader(
                 DATA_PATH, 
                 LEN_BATCH, 
                 QRS_DURATION, 
                 QRS_DURATION_STEP,
-                leave_for_testing=i,
+                leave_for_testing=filenames.index(file),
                 type_of_file='edf'
             )
 
@@ -127,34 +104,137 @@ for i in range(5):
     fecg_roi = fecg_testing_data[:, :, 0] * fecg_testing_data[:, :, 1]
     
     
-    testing_data[i] = {
+    testing_data[filenames.index(file)] = {
         'signal': fecg_testing_data,
         'roi_signal': fecg_roi
     }
+  
+#%%
+
+# for file in filenames:
+    
+#     file_info = mne.io.read_raw_edf(file)
+#     filedata = file_info.get_data()
+
+#     fig, ax = plt.subplots(5, 1)
+    
+#     ax[0].plot(filedata[0], label='fECG')
+#     ax[1].plot(filedata[1], label='aECG 1')
+#     ax[2].plot(filedata[2], label='aECG 2')
+#     ax[3].plot(filedata[3], label='aECG 3')
+#     ax[4].plot(filedata[4], label='aECG 4')
+    
+#     # fig, ax = plt.subplots()
+    
+#     # ax.plot(filedata)
 
 #%% concat results of the same dir
 
-results_dir = glob.glob(RESULTS_PATH + 'QRStime_0.1-LR_0.0001*')
+this_files = '280224_CUTTED_CHANNEL_LR_0.0001'
+
+results_dir = glob.glob(RESULTS_PATH + this_files + '*')
 
 result_qrs = {}
 
 detectors = Detectors(1000) # fs = frequencia de sampling
 
+to_remove = [
+    40,
+    41,
+    42,
+    43,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49,
+    50,
+    51,
+    52,
+    56,
+    57,
+    58,
+    59,
+    60,
+    177,
+    179,
+    180,
+    181,
+    182,183,
+    184,
+    185,
+    186,
+    187,
+    188,
+    189,
+    190,
+    197,
+    198,
+    199,
+    200,
+    201,
+    202,
+    203,
+    204,
+    205,
+    206,
+    207,
+    311,
+    312,
+    313,
+    314,
+    315,
+    316,
+    317,
+    318,
+    319,
+    320,
+    335, 
+    336, 
+    338,
+    339,
+    340,
+    341,
+    343,
+    365,
+    371,
+    393,
+    394,
+    395,
+    396,
+    397,
+    398,
+    399,
+    400,
+    401,
+    402,
+    403,
+    404,
+    405,
+    406,
+    407,
+    408,
+    409,
+    410,
+    411,
+    412,
+]
 
 this_weights_results = {}
 
-for i in [
-    # [0.3, 0.30000000000000004], 
-    [0.2, 0.1]
+for w in [
+    # [0.3, 0.3], 
+    [0.3, 0.3]
     # [0.1, 0.6000000000000001]
 ]:
     
     for j in range(5):
-    
-        dir = f'QRStime_0.1-LR_0.0001-W_MASK_{i[0]}-W_SIG_{i[1]}-LEFT_{j}'
         
-        w_mask = i[0]
-        w_signal = i[1]
+        dir = f'{this_files}-W_MASK_{w[0]}-W_SIG_{w[1]}-LEFT_{j}'
+        
+        w_mask = w[0]
+        w_signal = w[1]
         
         qrs_detection = []
         pan_tom_qrs_detection = []
@@ -165,6 +245,10 @@ for i in [
         for file in result_files:
             
             prediction_index = int(file.split('-prediction_')[1].split('-')[0].replace('.csv', ''))
+            
+            
+            if j == 4 and prediction_index in to_remove:
+                continue
             
             prediction_data = pd.read_csv(file, names=['signal', 'mask'])
             prediction_data['binary_mask'] = prediction_data['mask'].where(prediction_data['mask'] == 0, 1)
@@ -177,18 +261,6 @@ for i in [
             
             peaks_proposed = find_peaks(prediction_data['mask'].values, height=0.7, distance=50)
                        
-                      
-            # if len(peaks_proposed[0]) == 0:
-            #     print(prediction_index)
-                
-            #     fig, ax = plt.subplots()
-                
-            #     ax.set_title(f'{prediction_index} - file {j}')
-            #     ax.plot(prediction_data['mask'])
-            #     ax.plot(testing_data[j]['signal'][prediction_index], label='fECG')
-            
-            if len(peaks_proposed[0]) == 0:
-                print(prediction_index)
             
             for p in peaks_proposed[0]:
                 qrs_detection.append(int(p + prediction_index * 512))
@@ -201,7 +273,7 @@ for i in [
                 
             r_peaks_combined = panPeakDetect(prediction_data['combined-not-norm'].values, 200)
             r_peaks_signal = panPeakDetect(prediction_data['signal-not-norm'].values, 200)
-
+            
             for r in r_peaks_combined:
                 pan_tom_qrs_detection.append(r  + prediction_index * 512)
                 
@@ -226,13 +298,13 @@ filedata = file_info.get_data()
 
 plt.plot(filedata[0], alpha=0.5)
 plt.scatter(qrs_detection, np.zeros(shape=(np.shape(qrs_detection))), marker='x', color='black')
-plt.scatter(pan_tom_qrs_detection, np.zeros(shape=(np.shape(pan_tom_qrs_detection))), marker='.', color='red')
+# plt.scatter(pan_tom_qrs_detection, np.zeros(shape=(np.shape(pan_tom_qrs_detection))), marker='.', color='red')
 plt.scatter(annotations.onset * 1000, 5e-4 + np.zeros(shape=np.shape(annotations.onset)))
 
 plt.vlines(70, ymin=-5e-4, ymax=5e-4)
 plt.vlines(110, ymin=-5e-4, ymax=5e-4)
 
-plt.xlim(10000, 20000)
+plt.xlim(0, 1000)
 
 #%%
 
@@ -299,11 +371,11 @@ for i in range(5):
 
 #%%
 
-print('id\tf1\tf1_pt\tacc\tacc_pt')
+print('id\tf1\tf1_pt\trecall\trecall_pt')
 
 for j in range(5):
     
-    dir = f'QRStime_0.1-LR_0.0001-W_MASK_{i[0]}-W_SIG_{i[1]}-LEFT_{j}'
+    dir = f'{this_files}-W_MASK_{w[0]}-W_SIG_{w[1]}-LEFT_{j}'
     
     true_positive = 0
     false_positive = 0
@@ -314,9 +386,12 @@ for j in range(5):
     false_positive_pt = 0
     false_negative_pt = 0
 
-    limit = 262144
+    limit = 299520
 
     for peak in annotations_data[f'{j}'] * 1000:
+        
+        if j == 4 and int(np.floor(peak / 512)) in to_remove:
+            continue
         
         if peak <= limit:
             
@@ -343,19 +418,38 @@ for j in range(5):
                 false_negative += 1
                 
             if len(peak_found_pt[0]) > 0:
-            
                 true_positive_pt += 1
             else:
                 false_negative_pt += 1
+      
+    for peak in this_weights_results[f'{dir}-proposed']:
+        lower_limit = peak - 30
+        upper_limit = peak + 30
+            
+        peak_found = np.where(
+            (np.array(annotations_data[f'{j}'] * 1000) >= lower_limit) & 
+            (np.array(annotations_data[f'{j}'] * 1000) <= upper_limit)
+        )
         
-
+        if len(peak_found[0]) == 0:
+            false_positive += 1
+        
+    # print(total_peaks)
 
     f1 = true_positive / (
         true_positive + 0.5 * (false_positive + false_negative)
     )
     
+    recall = true_positive / (
+        true_positive + (false_negative)
+    )
+    
     f1_pt = true_positive_pt / (
         true_positive_pt + 0.5 * (false_positive_pt + false_negative_pt)
+    )
+    
+    recall_pt = true_positive_pt / (
+        true_positive_pt + (false_negative_pt)
     )
     
     acc = true_positive / (
@@ -372,45 +466,9 @@ for j in range(5):
                 f'{j}', 
                 f'{f1}', 
                 f'{f1_pt}', 
-                f'{acc}', 
-                f'{acc_pt}'
+                f'{recall}', 
+                f'{recall_pt}'
             ]
         )
     )
-
-#%%
-
-for i in range(5):
-    
-    fig, ax = plt.subplots()
-    
-    ax.plot(fecg_real_data[f'{i}'])
-    
-    mean = np.mean(fecg_real_data[f'{i}'])
-    std = np.std(fecg_real_data[f'{i}'])
-    
-    ax.hlines(y=mean, xmin = 0,xmax = 3e5, color='black')
-    ax.hlines(y=mean + std, xmin = 0,xmax = 3e5, color='black')
-    ax.hlines(y=mean - std, xmin = 0,xmax = 3e5, color='black')
-
-#%%
-# plt.plot(pan_tom_qrs_detection)
-
-# metrics_dataframe = pd.DataFrame(
-#     np.array(results_rows), columns=['w_mask', 'w_signal', 'mse_signal', 'mse_mask', 'mse_combined']
-# )
-
-# #%%
-
-# metrics_dataframe.sort_values(by = 'mse_mask', inplace=True)
-
-# #%%
-
-# import seaborn as sns
-
-# sns.heatmap(metrics_dataframe[['w_mask', 'w_signal']])
-# # %%
-
-
-
 # %%

@@ -39,6 +39,13 @@ def mse_function(y_true, y_pred):
     
     return mse_value
 
+def r_squared_function(y_true, y_pred):
+    
+    mean_y = np.mean(y_true)
+    
+    r_squared = 1 - (np.sum(np.power(y_true - y_pred, 2))) / (np.sum(np.power(y_pred - mean_y, 2)))
+
+    return r_squared
 #%% data load
 
 testing_data = {}
@@ -65,8 +72,7 @@ for i in range(5):
 
 
 #%% concat results of the same dir
-
-results_dir = glob.glob(RESULTS_PATH + '4CH_DAUG_QRStime_0.1-LR_0.0001-*')
+results_dir = glob.glob(RESULTS_PATH + '280224_CUTTED_CHANNEL_VAL_LOSS_LR_0.0001-*')
 results_rows = []
 
 for i in results_dir:
@@ -81,6 +87,7 @@ for i in results_dir:
     result_files = glob.glob(i + '/' + '*prediction_*')
     
     mse_signal, mse_mask, mse_combined = 0, 0, 0
+    r_squared_signal, r_squared_mask, r_squared_combined = 0, 0, 0
     
     for file in result_files:
         
@@ -88,7 +95,9 @@ for i in results_dir:
       
         
         prediction_data = pd.read_csv(file, names=['signal', 'mask'])
-        prediction_data['combined'] = prediction_data['signal'] * prediction_data['mask']
+        prediction_data['binary_mask'] = prediction_data['mask'].where(prediction_data['mask'] == 0, 1)
+        prediction_data['combined'] = prediction_data['signal'] * prediction_data['binary_mask']
+        
         
         mse_signal_partial = mse_function(testing_data[test_file]['signal'][prediction_index, :, 0], prediction_data['signal'])
         mse_mask_partial = mse_function(testing_data[test_file]['signal'][prediction_index, :, 1], prediction_data['mask'])
@@ -98,7 +107,15 @@ for i in results_dir:
         mse_mask += mse_mask_partial
         mse_combined += mse_combined_partial
         
-        if prediction_index in [1, 15, 16, 17, 18, 19, 56, 89, 111]:
+        r_squared_signal_partial = r_squared_function(testing_data[test_file]['signal'][prediction_index, :, 0], prediction_data['signal'])
+        r_squared_mask_partial = r_squared_function(testing_data[test_file]['signal'][prediction_index, :, 1], prediction_data['mask'])
+        r_squared_combined_partial = r_squared_function(testing_data[test_file]['roi_signal'][prediction_index], prediction_data['combined'])
+           
+        r_squared_signal += r_squared_signal_partial
+        r_squared_mask += r_squared_mask_partial
+        r_squared_combined += r_squared_combined_partial
+        
+        if prediction_index in [5,23,84,99,33]:
             
             fig, ax = plt.subplots()
             
@@ -151,13 +168,16 @@ for i in results_dir:
     this_row.append(mse_signal / len(result_files))
     this_row.append(mse_mask / len(result_files))
     this_row.append(mse_combined / len(result_files))
+    this_row.append(r_squared_signal / len(result_files))
+    this_row.append(r_squared_mask / len(result_files))
+    this_row.append(r_squared_combined / len(result_files))
     
     results_rows.append(this_row)
 
 #%% form data frame
 
 metrics_dataframe = pd.DataFrame(
-    np.array(results_rows), columns=['test_file', 'w_mask', 'w_signal', 'mse_signal', 'mse_mask', 'mse_combined']
+    np.array(results_rows), columns=['test_file', 'w_mask', 'w_signal', 'mse_signal', 'mse_mask', 'mse_combined', 'r2_signal', 'r2_mask', 'r2_combined']
 )
 
 #%%

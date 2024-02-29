@@ -166,7 +166,11 @@ def load_data(
     
         print(UPPER_LIMIT)
         
-        for batch in range(0, UPPER_LIMIT, len_data):
+        batch = 0
+        
+        while batch < 300000 - len_data:
+        
+        # for batch in range(0, UPPER_LIMIT, len_data):
 
 
             chunked_data = filedata[1::, (batch): ((batch + len_data))].transpose()
@@ -201,6 +205,8 @@ def load_data(
                 data_store = np.vstack((data_store, [chunked_data]))
                 fecg_store = np.vstack((fecg_store, [chunked_fecg_data]))
     
+    
+            batch += len_data
     # remove tendencies
     
     # data_store = remove_tendency(data_store, len_data)
