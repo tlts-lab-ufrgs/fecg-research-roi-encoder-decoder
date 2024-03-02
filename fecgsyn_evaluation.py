@@ -18,7 +18,7 @@ from utils.lr_scheduler import callback as lr_scheduler
 #%%
 
 model = tf.keras.models.load_model(
-    '/home/julia/Documents/fECG_research/research_dev/autoencoder_with_mask/final_model/', 
+    '/home/julia/Documents/fECG_research/research_dev/autoencoder_with_mask/final_model_3ch/', 
     custom_objects = {
         'mse_mask': Metric.mse_mask,
         'mse_signal': Metric.mse_signal, 
@@ -33,23 +33,23 @@ model = tf.keras.models.load_model(
 QRS_LEN = 13 # +- 125 pontos fazem o esmo que no abcd, fs = 250
 LEN_DATA = 512
 
-DATA_PATH = '/home/julia/Documents/fECG_research/datasets/fetal-ecg-synthetic-database-1.0.0'
+DATA_PATH = '/home/julia/Documents/fECG_research/datasets/our_fecgsyn_db'
 
 # %% load data
 
-syn_case = 5
+syn_case = 3
 snr = '03'
 
-for i in range(1, 11, 1):  # subjects
+for i in range(1, 2, 1):  # subjects
     
     i = f'0{i}' if i < 10 else 10 
     
     for j in range(1,6):  #repetitions
     
     
-        mecg_file = f'{DATA_PATH}/sub{i}/snr{snr}dB/sub{i}_snr{snr}dB_l{j}_c{syn_case}_mecg'
-        fecg_file = f'{DATA_PATH}/sub{i}/snr{snr}dB/sub{i}_snr{snr}dB_l{j}_c{syn_case}_fecg1'
-        noise_file = f'{DATA_PATH}/sub{i}/snr{snr}dB/sub{i}_snr{snr}dB_l{j}_c{syn_case}_noise1'
+        mecg_file = f'{DATA_PATH}/{i}_snr{snr}dB_l{j}_c{syn_case}_mecg'
+        fecg_file = f'{DATA_PATH}/{i}_snr{snr}dB_l{j}_c{syn_case}_fecg1'
+        noise_file = f'{DATA_PATH}/{i}_snr{snr}dB_l{j}_c{syn_case}_noise1'
 
 
         mecg_signal, labels_mecg = wfdb.rdsamp(mecg_file)
@@ -58,30 +58,30 @@ for i in range(1, 11, 1):  # subjects
         
         # mecg_signal += noise_signal
         
-        filtered_channels = mecg_signal[:, [4,9,10,14]]
+        filtered_channels = mecg_signal[:, [4,0,14]]
         filtered_channels_fecg = fecg_signal[:, 9]
 
-        time_annotations = wfdb.rdann(
-            fecg_file,
-            extension='qrs'
-        )
+        # time_annotations = wfdb.rdann(
+        #     fecg_file,
+        #     extension='qrs'
+        # )
         
         # Generates masks
         
         size_array = int(labels_mecg['sig_len'])
-        mask = np.zeros(shape=(size_array))
+        # mask = np.zeros(shape=(size_array))
 
-        for step in time_annotations.sample:
+        # for step in time_annotations.sample:
 
-            # center_index = np.where(time_annotations.sample == step)[0][0]
+        #     # center_index = np.where(time_annotations.sample == step)[0][0]
 
-            qrs_region = np.where(
-                (np.arange(0, size_array, 1) >= (step - 50)) &
-                (np.arange(0, size_array, 1) <= (step + 50))
-            )[0]
+        #     qrs_region = np.where(
+        #         (np.arange(0, size_array, 1) >= (step - 50)) &
+        #         (np.arange(0, size_array, 1) <= (step + 50))
+        #     )[0]
         
             
-            mask[qrs_region] = gaussian(qrs_region, step, 12)
+        #     mask[qrs_region] = gaussian(qrs_region, step, 12)
             
             
             
@@ -99,43 +99,53 @@ for i in range(1, 11, 1):  # subjects
 
             chunked_data = filtered_channels[(batch): ((batch + LEN_DATA)), :]
             
-            chunked_fecg_real_data = filtered_channels_fecg[(batch): (batch + LEN_DATA)]
-            chunked_fecg_binary_data = mask[(batch): (batch + LEN_DATA)]
+            # chunked_fecg_real_data = filtered_channels_fecg[(batch): (batch + LEN_DATA)]
+            # chunked_fecg_binary_data = mask[(batch): (batch + LEN_DATA)]
 
             
             # Data Normalization
 
             chunked_data += np.abs(np.min(chunked_data)) # to zero things
-            chunked_fecg_real_data += np.abs(np.min(chunked_fecg_real_data)) # to zero things
+            # chunked_fecg_real_data += np.abs(np.min(chunked_fecg_real_data)) # to zero things
             
 
             chunked_data *= (1 / np.abs(np.max(chunked_data)))
-            chunked_fecg_real_data *= (1 / np.abs(np.max(chunked_fecg_real_data)))
+            # chunked_fecg_real_data *= (1 / np.abs(np.max(chunked_fecg_real_data)))
             
             
-            chunked_fecg_data = np.array([
-                chunked_fecg_real_data, 
-                chunked_fecg_binary_data
-            ]).transpose()
+            # chunked_fecg_data = np.array([
+            #     chunked_fecg_real_data, 
+            #     chunked_fecg_binary_data
+            # ]).transpose()
 
             if i == '01' and j == 1 and batch == 0:
 
                 aECG_store = np.copy([chunked_data])
-                fECG_store = np.copy([chunked_fecg_data])
+                # fECG_store = np.copy([chunked_fecg_data])
 
             else:
                 aECG_store = np.vstack((aECG_store, [chunked_data]))
-                fECG_store = np.vstack((fECG_store, [chunked_fecg_data]))
+                # fECG_store = np.vstack((fECG_store, [chunked_fecg_data]))
     
 #%%
 
-prediction = model.predict(aECG_store)
+PATH = '/home/julia/Documents/fECG_research/datasets/ninfea-non-invasive-multimodal-foetal-ecg-doppler-dataset-for-antenatal-cardiology-research-1.0.0/'
+
+
+signal, label = wfdb.rdsamp(
+    f'{PATH}/wfdb_format_ecg_and_respiration/23')
 
 #%%
 
-plt.plot(prediction[2])
+prediction = model.predict([signal[0:512, [21,8,12]]])
 
-plt.plot(fECG_store[2])
+#%%
+
+plt.plot(aECG_store[10])
+
+# plt.plot(prediction[9])
+
+# plt.plot(fECG_store[2])
 
 #%%
 # if syn_case == 5:

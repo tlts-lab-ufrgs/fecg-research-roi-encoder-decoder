@@ -23,7 +23,7 @@ RESULTS_PATH = "/home/julia/Documents/fECG_research/research_dev/autoencoder_wit
 DATA_PATH =  "/home/julia/Documents/fECG_research/datasets/abdominal-and-direct-fetal-ecg-database-1.0.0/"
 
 CHANNELS = 4
-LEN_BATCH = 512
+LEN_BATCH = 1024
 QRS_DURATION = 0.1  # seconds, max
 QRS_DURATION_STEP = 50
 
@@ -69,7 +69,7 @@ for i in range(5):
 
 
 #%% concat results of the same dir
-results_dir = glob.glob(RESULTS_PATH + '010324-4CH-VAL_LOSS-MOD_DA6-LR_0.0001*')
+results_dir = glob.glob(RESULTS_PATH + '020324-LEN_DATA_1024-3CH-VAL_LOSS-MOD_DA6-LR_0.0001*')
 results_rows = []
 
 for i in results_dir:

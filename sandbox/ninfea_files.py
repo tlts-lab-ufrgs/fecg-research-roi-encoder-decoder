@@ -25,6 +25,10 @@ annotation = wfdb.io.rdann(
 
 #%%
 
+signal, label = wfdb.rdsamp(
+    f'{PATH}/wfdb_format_ecg_and_respiration/23')
+
+#%%
 
 record = wfdb.rdsamp('/home/julia/Documents/fECG_research/datasets/ninfea-non-invasive-multimodal-foetal-ecg-doppler-dataset-for-antenatal-cardiology-research-1.0.0/wfdb_format_ecg_and_respiration/1') 
 # wfdb.plot_wfdb(record=record, title='Record a103l from PhysioNet Challenge 2015') 

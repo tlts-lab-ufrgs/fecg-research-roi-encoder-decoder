@@ -26,7 +26,7 @@ TOTAL_FILES = 5
 RESULTS_PATH = "/home/julia/Documents/fECG_research/research_dev/autoencoder_with_mask/results/"
 DATA_PATH =  "/home/julia/Documents/fECG_research/datasets/abdominal-and-direct-fetal-ecg-database-1.0.0/"
 
-CHANNELS = 4
+CHANNELS = 3
 LEN_BATCH = 512
 QRS_DURATION = 0.1  # seconds, max
 QRS_DURATION_STEP = 50
@@ -34,7 +34,7 @@ QRS_DURATION_STEP = 50
 MODEL_INPUT_SHAPE = (BATCH_SIZE, LEN_BATCH, CHANNELS)
 
 
-W_MASK = 0.2
+W_MASK = 0.3
 W_SIGNAL = 0.1
 W_COMBINED = 1 - W_MASK - W_SIGNAL
 #%%
@@ -60,12 +60,13 @@ model = ProposedAE(
     ground_truth=training_data[1],
     testing_data=None, 
     ground_truth_testing=None, 
+    epochs=150
 )
 
 history, _, _ = model.fit_and_evaluate()
 
 #%%
-model.save('/home/julia/Documents/fECG_research/research_dev/autoencoder_with_mask/final_model/')
+model.save('/home/julia/Documents/fECG_research/research_dev/autoencoder_with_mask/final_model_3ch/')
 
 #%%
 
@@ -77,7 +78,7 @@ from utils.lr_scheduler import callback as lr_scheduler
 #%%
 
 model = tf.keras.models.load_model(
-    '/home/julia/Documents/fECG_research/research_dev/autoencoder_with_mask/final_model/', 
+    '/home/julia/Documents/fECG_research/research_dev/autoencoder_with_mask/final_model_3ch/', 
     custom_objects = {
         'mse_mask': Metric.mse_mask,
         'mse_signal': Metric.mse_signal, 

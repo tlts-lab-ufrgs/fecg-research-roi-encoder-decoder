@@ -66,8 +66,8 @@ def mse_function(y_true, y_pred):
 RESULTS_PATH = "/home/julia/Documents/fECG_research/research_dev/autoencoder_with_mask/results/"
 DATA_PATH =  "/home/julia/Documents/fECG_research/datasets/abdominal-and-direct-fetal-ecg-database-1.0.0/"
 
-CHANNELS = 4
-LEN_BATCH = 512
+CHANNELS = 3
+LEN_BATCH = 1024
 QRS_DURATION = 0.1  # seconds, max
 QRS_DURATION_STEP = 50
 
@@ -131,7 +131,7 @@ for file in glob.glob(DATA_PATH + '/*.edf'):
 
 #%% concat results of the same dir
 
-this_files = '010324-4CH-VAL_LOSS-MOD_DA6-LR_0.0001'
+this_files = '020324-LEN_DATA_1024-3CH-VAL_LOSS-MOD_DA6-LR_0.0001'
 results_dir = glob.glob(RESULTS_PATH + this_files + '*')
 
 result_qrs = {}
@@ -260,13 +260,13 @@ for w in [
             
             # Fit the double Gaussian to the data
             
-            peaks_proposed = find_peaks(prediction_data['mask'].values, height=0.8, distance=200)
+            peaks_proposed = find_peaks(prediction_data['mask'].values, height=0.7, distance=200)
               
            
             for p in peaks_proposed[0]:
             
                 lower_limit_mask = 0 if p - 50 < 0 else p - 50
-                upper_limit_mask = 512 if p + 50 > 512 else p + 50
+                upper_limit_mask = LEN_BATCH if p + 50 > LEN_BATCH else p + 50
 
                 roi_predicted = prediction_data['mask'][lower_limit_mask : upper_limit_mask]
                 
@@ -279,28 +279,28 @@ for w in [
                 # alpha = 0.05
                 # if p_value > alpha:
                 
-                    qrs_detection.append(int(p + prediction_index * 512))
-                else:
-                    fig, ax = plt.subplots()
-                    ax.set_title(f'{j} - {p} - {prediction_index}')
-                    ax.plot(roi_predicted)
-                    ax.plot(roi_predicted.diff())
-                    ax.plot(roi_predicted.diff().diff())
+                    qrs_detection.append(int(p + prediction_index * LEN_BATCH))
+                # else:
+                #     fig, ax = plt.subplots()
+                #     ax.set_title(f'{j} - {p} - {prediction_index}')
+                #     ax.plot(roi_predicted)
+                #     ax.plot(roi_predicted.diff())
+                #     ax.plot(roi_predicted.diff().diff())
                 
-            this_real = fecg_real_data[f'{j}'][prediction_index * 512 : prediction_index * 512 + 512]
+            this_real = fecg_real_data[f'{j}'][prediction_index * LEN_BATCH : prediction_index * LEN_BATCH + LEN_BATCH]
             
-            prediction_data['combined-not-norm'] = np.max(this_real + np.abs(np.min(this_real))) * (prediction_data['combined-binary']) - np.abs(np.min(this_real))
-            prediction_data['signal-not-norm'] = np.max(this_real + np.abs(np.min(this_real))) * (prediction_data['signal']) - np.abs(np.min(this_real))
+            # prediction_data['combined-not-norm'] = np.max(this_real + np.abs(np.min(this_real))) * (prediction_data['combined-binary']) - np.abs(np.min(this_real))
+            # prediction_data['signal-not-norm'] = np.max(this_real + np.abs(np.min(this_real))) * (prediction_data['signal']) - np.abs(np.min(this_real))
             
                 
-            r_peaks_combined = panPeakDetect(prediction_data['combined-not-norm'].values, 200)
-            r_peaks_signal = panPeakDetect(prediction_data['signal-not-norm'].values, 200)
+            r_peaks_combined = panPeakDetect(prediction_data['combined-binary'].values, 200)
+            r_peaks_signal = panPeakDetect(prediction_data['signal'].values, 200)
             
             for r in r_peaks_combined:
-                pan_tom_qrs_detection.append(r  + prediction_index * 512)
+                pan_tom_qrs_detection.append(r  + prediction_index * LEN_BATCH)
                 
             for r in r_peaks_signal:
-                pan_tom_qrs_detection_signal.append(r  + prediction_index * 512)
+                pan_tom_qrs_detection_signal.append(r  + prediction_index * LEN_BATCH)
         
         this_weights_results[f'{dir}-proposed'] = qrs_detection
         this_weights_results[f'{dir}-pan-combined'] = pan_tom_qrs_detection
@@ -404,16 +404,17 @@ for j in [0, 1, 2, 3, 4]:
     false_negative = 0
     total_peaks = 0
     true_positive_peaks = []
+    true_positive_peaks_pt = []
     
     true_positive_pt = 0
     false_positive_pt = 0
     false_negative_pt = 0
 
-    limit = 299520
+    limit = 298976
 
     for peak in annotations_data[f'{j}'] * 1000:
         
-        if j == 4 and int(np.floor(peak / 512)) in to_remove:
+        if j == 4 and int(np.floor(peak / LEN_BATCH)) in to_remove:
             continue
         
         if peak <= limit:
@@ -430,8 +431,8 @@ for j in [0, 1, 2, 3, 4]:
             )
             
             peak_found_pt = np.where(
-                (np.array(this_weights_results[f'{dir}-pan-signal']) >= lower_limit) & 
-                (np.array(this_weights_results[f'{dir}-pan-signal']) <= upper_limit)
+                (np.array(this_weights_results[f'{dir}-pan-combined']) >= lower_limit) & 
+                (np.array(this_weights_results[f'{dir}-pan-combined']) <= upper_limit)
             )
             
             if len(peak_found[0]) > 0:
@@ -441,6 +442,7 @@ for j in [0, 1, 2, 3, 4]:
                 false_negative += 1
                 
             if len(peak_found_pt[0]) > 0:
+                true_positive_peaks_pt.append(peak_found_pt[0][0])
                 true_positive_pt += 1
             else:
                 false_negative_pt += 1
@@ -475,6 +477,37 @@ for j in [0, 1, 2, 3, 4]:
             
         already_mentioned_peaks.append(peak)
     # print(total_peaks)
+    
+    already_counted = []
+    
+    for peak in this_weights_results[f'{dir}-pan-combined']:
+        
+        already_counted = np.where(
+            (np.array(already_mentioned_peaks) >= peak - 50) & 
+            (np.array(already_mentioned_peaks) <= peak + 50)
+        )
+        
+        # this case is specially for roi at the end or beggining of an file
+        already_counted_as_true = np.where(
+                (np.array(true_positive_peaks_pt) >= lower_limit) & 
+                (np.array(true_positive_peaks_pt) <= upper_limit)
+            )
+        
+        if len(already_counted[0]) == 0 and len(already_counted_as_true[0]) == 0:
+            lower_limit = peak - 30
+            upper_limit = peak + 30
+                
+            peak_found = np.where(
+                (np.array(annotations_data[f'{j}'] * 1000) >= lower_limit) & 
+                (np.array(annotations_data[f'{j}'] * 1000) <= upper_limit)
+            )
+            
+            if len(peak_found[0]) == 0:
+                
+                false_positive_pt += 1
+            
+        already_mentioned_peaks.append(peak)
+    # print(total_peaks)
 
     f1 = true_positive / (
         true_positive + 0.5 * (false_positive + false_negative)
@@ -496,10 +529,9 @@ for j in [0, 1, 2, 3, 4]:
         true_positive_pt + (false_negative_pt)
     )
     
-    # s_pt = true_positive_pt / (
-    #  true_positive_pt + (false_positive_pt)
-    # )
-    s_pt = 0
+    s_pt = true_positive_pt / (
+     true_positive_pt + (false_positive_pt)
+    )
     
     acc = true_positive / (
         (total_peaks + false_positive)

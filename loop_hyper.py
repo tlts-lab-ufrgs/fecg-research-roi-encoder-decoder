@@ -27,7 +27,7 @@ RESULTS_PATH = "/home/julia/Documents/fECG_research/research_dev/autoencoder_wit
 DATA_PATH =  "/home/julia/Documents/fECG_research/datasets/abdominal-and-direct-fetal-ecg-database-1.0.0/"
 
 CHANNELS = 3
-LEN_BATCH = 512
+LEN_BATCH = 1024
 QRS_DURATION = 0.1  # seconds, max
 QRS_DURATION_STEP = 50
 
@@ -62,7 +62,7 @@ for i in range(0, TOTAL_FILES, 1):
     
     # i = 4
 
-    prefix_id = f'010324-3CH-VAL_LOSS-MOD_DA6-LR_{UPPER_LIM_LR}-W_MASK_{w_mask}-W_SIG_{w_signal}-LEFT_{i}'
+    prefix_id = f'020324-LEN_DATA_1024-3CH-VAL_LOSS-MOD_DA6-LR_{UPPER_LIM_LR}-W_MASK_{w_mask}-W_SIG_{w_signal}-LEFT_{i}'
     
     
     print(prefix_id)
