@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 import matplotlib.pyplot as plt
-
+from sklearn.metrics import r2_score
 from data_load.load_leave_one_out import data_loader
     
 #%% constants 
@@ -39,13 +39,6 @@ def mse_function(y_true, y_pred):
     
     return mse_value
 
-def r_squared_function(y_true, y_pred):
-    
-    mean_y = np.mean(y_true)
-    
-    r_squared = 1 - (np.sum(np.power(y_true - y_pred, 2))) / (np.sum(np.power(y_pred - mean_y, 2)))
-
-    return r_squared
 #%% data load
 
 testing_data = {}
@@ -62,7 +55,11 @@ for i in range(5):
             )
 
     fecg_testing_data = this_testing_data[1]
-    fecg_roi = fecg_testing_data[:, :, 0] * fecg_testing_data[:, :, 1]
+    fecg_roi = fecg_testing_data[:, :, 0] * np.where(
+        fecg_testing_data[:, :, 1] == 0, 
+        0, 
+        1
+    )
     
     
     testing_data[i] = {
@@ -72,7 +69,7 @@ for i in range(5):
 
 
 #%% concat results of the same dir
-results_dir = glob.glob(RESULTS_PATH + '280224_CUTTED_CHANNEL_VAL_LOSS_LR_0.0001-*')
+results_dir = glob.glob(RESULTS_PATH + '010324-4CH-VAL_LOSS-MOD_DA6-LR_0.0001*')
 results_rows = []
 
 for i in results_dir:
@@ -107,16 +104,24 @@ for i in results_dir:
         mse_mask += mse_mask_partial
         mse_combined += mse_combined_partial
         
-        r_squared_signal_partial = r_squared_function(testing_data[test_file]['signal'][prediction_index, :, 0], prediction_data['signal'])
-        r_squared_mask_partial = r_squared_function(testing_data[test_file]['signal'][prediction_index, :, 1], prediction_data['mask'])
-        r_squared_combined_partial = r_squared_function(testing_data[test_file]['roi_signal'][prediction_index], prediction_data['combined'])
+    
+
+        r_squared_signal_partial = r2_score(testing_data[test_file]['signal'][prediction_index, :, 0], prediction_data['signal'])
+        r_squared_mask_partial = r2_score(testing_data[test_file]['signal'][prediction_index, :, 1], prediction_data['mask'])
+        r_squared_combined_partial = r2_score(testing_data[test_file]['roi_signal'][prediction_index], prediction_data['combined'])
            
-        r_squared_signal += r_squared_signal_partial
-        r_squared_mask += r_squared_mask_partial
-        r_squared_combined += r_squared_combined_partial
+        r_squared_signal += abs(r_squared_signal_partial)
+        r_squared_mask += abs(r_squared_mask_partial)
+        r_squared_combined += abs(r_squared_combined_partial)
         
-        if prediction_index in [5,23,84,99,33]:
-            
+        # false_positive = [
+        # ]
+        
+        # if prediction_index in [int(i / 512) for i in false_positive] and test_file == 0:
+           
+        if prediction_index in [
+            1  
+        ]: 
             fig, ax = plt.subplots()
             
             ax.set_title('')
@@ -133,12 +138,12 @@ for i in results_dir:
             
             ax1 = ax.twinx()
             
-            ax1.plot(prediction_data['mask'], label='Predicted RoI', color='purple')
             ax1.plot(
                 testing_data[test_file]['signal'][prediction_index, :, 1], 
                 label='Ground truth RoI', 
                 color='green'
                 )
+            ax1.plot(prediction_data['mask'], label='Predicted RoI', color='purple')
             
             ax.set_xlabel('Time steps')
             ax.set_ylabel('fECG normalized')

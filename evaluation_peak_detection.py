@@ -29,6 +29,7 @@ import tensorflow as tf
 import matplotlib.pyplot as plt
 from ecgdetectors import panPeakDetect, Detectors
 from scipy.signal import find_peaks
+from scipy.stats import shapiro
 
 from data_load.load_leave_one_out import data_loader
 
@@ -130,8 +131,7 @@ for file in glob.glob(DATA_PATH + '/*.edf'):
 
 #%% concat results of the same dir
 
-this_files = '280224_CUTTED_CHANNEL_LR_0.0001'
-
+this_files = '010324-4CH-VAL_LOSS-MOD_DA6-LR_0.0001'
 results_dir = glob.glob(RESULTS_PATH + this_files + '*')
 
 result_qrs = {}
@@ -225,12 +225,13 @@ this_weights_results = {}
 
 for w in [
     # [0.3, 0.3], 
-    [0.3, 0.3]
+    [0.3, 0.1]
     # [0.1, 0.6000000000000001]
 ]:
-    
+
     for j in range(5):
-        
+
+        print(j)        
         dir = f'{this_files}-W_MASK_{w[0]}-W_SIG_{w[1]}-LEFT_{j}'
         
         w_mask = w[0]
@@ -245,7 +246,7 @@ for w in [
         for file in result_files:
             
             prediction_index = int(file.split('-prediction_')[1].split('-')[0].replace('.csv', ''))
-            
+        
             
             if j == 4 and prediction_index in to_remove:
                 continue
@@ -259,11 +260,32 @@ for w in [
             
             # Fit the double Gaussian to the data
             
-            peaks_proposed = find_peaks(prediction_data['mask'].values, height=0.7, distance=50)
-                       
-            
+            peaks_proposed = find_peaks(prediction_data['mask'].values, height=0.8, distance=200)
+              
+           
             for p in peaks_proposed[0]:
-                qrs_detection.append(int(p + prediction_index * 512))
+            
+                lower_limit_mask = 0 if p - 50 < 0 else p - 50
+                upper_limit_mask = 512 if p + 50 > 512 else p + 50
+
+                roi_predicted = prediction_data['mask'][lower_limit_mask : upper_limit_mask]
+                
+                if roi_predicted.diff().max() < 0.5:
+                # stat, p_value = shapiro(roi_predicted)
+
+                # print(f'Statistics={stat:.3f}, p-value={p_value:.3f}')
+
+                # # Interpret the p-value
+                # alpha = 0.05
+                # if p_value > alpha:
+                
+                    qrs_detection.append(int(p + prediction_index * 512))
+                else:
+                    fig, ax = plt.subplots()
+                    ax.set_title(f'{j} - {p} - {prediction_index}')
+                    ax.plot(roi_predicted)
+                    ax.plot(roi_predicted.diff())
+                    ax.plot(roi_predicted.diff().diff())
                 
             this_real = fecg_real_data[f'{j}'][prediction_index * 512 : prediction_index * 512 + 512]
             
@@ -371,9 +393,9 @@ for i in range(5):
 
 #%%
 
-print('id\tf1\tf1_pt\trecall\trecall_pt')
+print('id\tf1\tf1_pt\trecall\trecall_pt\ts\ts_pt\acc')
 
-for j in range(5):
+for j in [0, 1, 2, 3, 4]:
     
     dir = f'{this_files}-W_MASK_{w[0]}-W_SIG_{w[1]}-LEFT_{j}'
     
@@ -381,6 +403,7 @@ for j in range(5):
     false_positive = 0
     false_negative = 0
     total_peaks = 0
+    true_positive_peaks = []
     
     true_positive_pt = 0
     false_positive_pt = 0
@@ -412,7 +435,7 @@ for j in range(5):
             )
             
             if len(peak_found[0]) > 0:
-            
+                true_positive_peaks.append(peak_found[0][0])
                 true_positive += 1
             else:
                 false_negative += 1
@@ -421,19 +444,36 @@ for j in range(5):
                 true_positive_pt += 1
             else:
                 false_negative_pt += 1
-      
+    
+    already_mentioned_peaks = []  
+    
     for peak in this_weights_results[f'{dir}-proposed']:
-        lower_limit = peak - 30
-        upper_limit = peak + 30
-            
-        peak_found = np.where(
-            (np.array(annotations_data[f'{j}'] * 1000) >= lower_limit) & 
-            (np.array(annotations_data[f'{j}'] * 1000) <= upper_limit)
+        
+        already_counted = np.where(
+            (np.array(already_mentioned_peaks) >= peak - 50) & 
+            (np.array(already_mentioned_peaks) <= peak + 50)
         )
         
-        if len(peak_found[0]) == 0:
-            false_positive += 1
+        # this case is specially for roi at the end or beggining of an file
+        already_counted_as_true = np.where(
+                (np.array(true_positive_peaks) >= lower_limit) & 
+                (np.array(true_positive_peaks) <= upper_limit)
+            )
         
+        if len(already_counted[0]) == 0 and len(already_counted_as_true[0]) == 0:
+            lower_limit = peak - 30
+            upper_limit = peak + 30
+                
+            peak_found = np.where(
+                (np.array(annotations_data[f'{j}'] * 1000) >= lower_limit) & 
+                (np.array(annotations_data[f'{j}'] * 1000) <= upper_limit)
+            )
+            
+            if len(peak_found[0]) == 0:
+                
+                false_positive += 1
+            
+        already_mentioned_peaks.append(peak)
     # print(total_peaks)
 
     f1 = true_positive / (
@@ -444,6 +484,10 @@ for j in range(5):
         true_positive + (false_negative)
     )
     
+    s = true_positive / (
+        true_positive + (false_positive)
+    )
+    
     f1_pt = true_positive_pt / (
         true_positive_pt + 0.5 * (false_positive_pt + false_negative_pt)
     )
@@ -452,12 +496,17 @@ for j in range(5):
         true_positive_pt + (false_negative_pt)
     )
     
+    # s_pt = true_positive_pt / (
+    #  true_positive_pt + (false_positive_pt)
+    # )
+    s_pt = 0
+    
     acc = true_positive / (
-        (total_peaks)
+        (total_peaks + false_positive)
     )
     
     acc_pt = true_positive_pt / (
-        (total_peaks)
+        (total_peaks + false_positive)
     )
     
     print(
@@ -467,8 +516,24 @@ for j in range(5):
                 f'{f1}', 
                 f'{f1_pt}', 
                 f'{recall}', 
-                f'{recall_pt}'
+                f'{recall_pt}', 
+                f'{s}', 
+                f'{s_pt}', 
+                f'{acc}'
             ]
         )
     )
+# %%
+
+import scipy.stats
+
+def mean_confidence_interval(data, confidence=0.95):
+    a = 1.0 * np.array(data)
+    n = len(a)
+    m, se = np.mean(a), scipy.stats.sem(a)
+    h = se * scipy.stats.norm.ppf((1 + confidence) / 2.)
+    return m, se, m-h, m+h
+
+
+
 # %%

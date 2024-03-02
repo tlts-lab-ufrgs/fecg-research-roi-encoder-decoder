@@ -321,7 +321,7 @@ import pandas as pd
 
 # results/4CH_MOD-LOSS_SCH-MOD-4_DATA-AUG-3_QRStime_0.1-LR_0.0001-W_MASK_0.3-W_SIG_0.1-LEFT_4/4CH_MOD-LOSS_SCH-MOD-4_DATA-AUG-3_QRStime_0.1-LR_0.0001-W_MASK_0.3-W_SIG_0.1-LEFT_4-training_history.csv
 
-filename = '/home/julia/Documents/fECG_research/research_dev/autoencoder_with_mask/results/280224_CUTTED_CHANNEL_VAL_LOSS_LR_0.0001-W_MASK_0.3-W_SIG_0.3-LEFT_0/280224_CUTTED_CHANNEL_VAL_LOSS_LR_0.0001-W_MASK_0.3-W_SIG_0.3-LEFT_0-training_history.csv'
+filename = '/home/julia/Documents/fECG_research/research_dev/autoencoder_with_mask/results/010324-4CH-VAL_LOSS-SCH_0.01-DROPOUT_RP10-LR_0.0001-W_MASK_0.3-W_SIG_0.1-LEFT_0/010324-4CH-VAL_LOSS-SCH_0.01-DROPOUT_RP10-LR_0.0001-W_MASK_0.3-W_SIG_0.1-LEFT_0-training_history.csv'
 
 data = pd.read_csv(filename)
 #%%
@@ -329,10 +329,10 @@ data = pd.read_csv(filename)
 import matplotlib.pyplot as plt
 
 
-plt.plot(data['loss'], label='loss')
+# plt.plot(data['loss'], label='loss')
 plt.plot(data['val_loss'], label='val loss')
-plt.plot(data['mse_signal'], label='mse siG')
-plt.plot(data['mse_mask'], label='mask')
+# plt.plot(data['mse_signal'], label='mse siG')
+# plt.plot(data['mse_mask'], label='mask')
 
 plt.legend()
 
@@ -424,7 +424,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-file = '/home/julia/Documents/fECG_research/datasets/abdominal-and-direct-fetal-ecg-database-1.0.0/r10.edf'
+file = '/home/julia/Documents/fECG_research/datasets/abdominal-and-direct-fetal-ecg-database-1.0.0/r07.edf'
 
 file_info = mne.io.read_raw_edf(file)
 raw_data = file_info.get_data()
@@ -434,16 +434,14 @@ time_annotations = annotations.onset
 #%%
 
 i = 200000
-
-lim_max = 300000
-
 delta = 2048
+lim_max = i + 2*delta
 
 while i < lim_max - delta:
     
     fig, ax = plt.subplots(5, 1)
     
-    ax[0].set_title(f'{i / 512}')
+    ax[0].set_title(f'{i / 2048}')
     
     ax[0].plot(raw_data[1, i : (i+delta)], color='black')
     ax[1].plot(raw_data[2, i : (i+delta)], color='blue')

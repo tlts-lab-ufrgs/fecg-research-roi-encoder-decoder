@@ -19,6 +19,8 @@ from tensorflow.keras.layers import (
     Dropout
 )
 
+from utils.gaussian_function import gaussian
+
 
 def add_baseline_wandering(x, num_components=5, amplitude=1, fs=1000):
     t = np.arange(len(x)) / fs
@@ -49,20 +51,57 @@ class CustomDataAugmentation(tf.keras.layers.Layer):
     def call(self, inputs, training=None):
         if training:
             # baseline input
-            augmented_inputs = tf.numpy_function(add_baseline_wandering, [inputs, self.num_components, self.amplitude, self.fs], tf.float32)   
-                        
-            # gaussian noise
-            mu = 0
-            sigma = 0.1
-            noise = 0.1 * np.random.normal(mu, sigma, size=np.shape(augmented_inputs))    
-            augmented_inputs += noise
+            add_baseline = np.random.randint(0, 2)
+            if add_baseline != 0:
+                augmented_inputs = tf.numpy_function(add_baseline_wandering, [inputs, self.num_components, self.amplitude, self.fs], tf.float32)   
+            else:
+                augmented_inputs = np.copy(inputs)            
+            
+            
+            # random_small_peak = np.zeros(shape=(512))
+            # init_random_peak = np.random.randint(0, 513 - 20)
+            # random_small_peak[init_random_peak : init_random_peak + 21] = 0.1 * np.sin(0.1 * np.pi * np.arange(0, 21))
+            
+            # for i in range(np.shape(augmented_inputs)[-1]):
+            #     augmented_inputs[i] += random_small_peak
+            
+            
+            for i in [0, 1, 2, 3]:
+                # gaussian noise
+                mu = 0
+                sigma = 1
+                noise = 0.1 * np.random.normal(mu, sigma, size=np.shape(augmented_inputs[:, :, i]))    
+                augmented_inputs[:, :, i] += noise
             
             # cutoff 
             
-            channel_to_cutoff = np.random.randint(-1, 4)
-            if channel_to_cutoff != -1:
-                augmented_inputs[:, :, channel_to_cutoff] = np.zeros_like(channel_to_cutoff)
+            channel_to_cutoff = np.random.randint(0, 4)
+            
+            begin_of_region = np.random.randint(0, 513 - 10)
+            end_of_region = np.random.randint(begin_of_region + 50, 513)
+            
+            # if channel_to_cutoff != -1:
+            augmented_inputs[:, begin_of_region:end_of_region + 1, channel_to_cutoff] = np.full(shape=np.shape(augmented_inputs[:, :, channel_to_cutoff]), fill_value = np.mean(augmented_inputs[:, :, channel_to_cutoff]))
                    
+
+            # second cuttoff
+            
+            channel_to_cutoff = np.random.randint(0, 4)
+            begin_of_region = np.random.randint(0, 513 - 10)
+            end_of_region = np.random.randint(begin_of_region + 50, 513)
+            augmented_inputs[:, begin_of_region:end_of_region + 1, channel_to_cutoff] = 0 #np.full(shape=np.shape(augmented_inputs[:, :, channel_to_cutoff]), fill_value = np.max(augmented_inputs[:, :, channel_to_cutoff]))
+                   
+            # add a start of gaussian at the end of beginning of the file:
+            add_gausian_tail_to_data = np.random.randint(0, 1)
+            if add_gausian_tail_to_data == 1:
+                at_the_end_of_data = np.random.randint(0, 1)
+                
+                
+                if at_the_end_of_data == 1:
+                    augmented_inputs[:, [490, 513]] += gaussian(np.arange(490, 513), np.random.randint(512, 65), 0.1)
+                else:
+                    augmented_inputs[:, [0, 30]] += gaussian(np.arange(0, 30), np.random.randint(0, -32), 0.1)
+
                         
             return augmented_inputs
         else:
@@ -218,11 +257,14 @@ class ProposedAE:
             output_padding=0
         )(x)
         x = self.conv_block(x, num_filters=512, kernel_size=1, padding='valid', activation='relu')
+        # x = Dropout(0.1)(x)
         
         decoder = self.decoder_block(x, encoder_block3, 256, kernel_size=4, activation='relu')
+        # decoder = Dropout(0.1)(decoder)
         decoder = self.decoder_block(decoder, encoder_block2, 128, kernel_size=4, activation='relu')
+        # decoder = Dropout(0.1)(decoder)
         decoder = self.decoder_block(decoder, encoder_block1, 64, kernel_size=4, activation='relu')
-        
+        # decoder = Dropout(0.1)(decoder)
         
 
         # Last upsampling
@@ -234,6 +276,7 @@ class ProposedAE:
             strides=2,
             output_padding=0
         )(x)
+        x = Dropout(0.2)(x)
         x = self.conv_block(x, num_filters=16, kernel_size=1, padding='valid', activation='relu')
         
         print(np.shape(x))
@@ -247,10 +290,13 @@ class ProposedAE:
     def signal_decoder_block(self, x, encoder_block1, encoder_block2, encoder_block3, encoder_block4):
 
         decoder = self.decoder_block(x, encoder_block4[:, :, 0:256], 256, kernel_size=4)
+        # decoder = Dropout(0.1)(decoder)
         decoder = self.decoder_block(decoder, encoder_block3[:, :, 0:128], 128, kernel_size=4)
+        # decoder = Dropout(0.1)(decoder)
         decoder = self.decoder_block(decoder, encoder_block2[:, :, 0:64], 64, kernel_size=4)
+        # decoder = Dropout(0.1)(decoder)
         decoder = self.decoder_block(decoder, encoder_block1[:, :, 0:32], 32, kernel_size=4)
-
+        # decoder = Dropout(0.1)(decoder)
 
         x = self.conv_block(decoder, num_filters=512, kernel_size=2, padding='valid', activation='relu')
         
@@ -297,6 +343,7 @@ class ProposedAE:
 
         bottleneck = self.encoder_block(encoder_block4, num_filters=1024)
         print('Bottle neck', np.shape(bottleneck))
+        bottleneck = Dropout(0.2)(bottleneck)
 
     
         mask_decoded = self.mask_decoder_block(bottleneck[:, :, 256:512], encoder_block1, encoder_block2, encoder_block3, encoder_block4)
@@ -338,7 +385,7 @@ class ProposedAE:
                 shuffle=True, 
                 callbacks=[
                     lr_scheduler,
-                    patience_callback('loss', self.epochs_in_patience)
+                    patience_callback('val_loss', self.epochs_in_patience)
                 ],
             )
         

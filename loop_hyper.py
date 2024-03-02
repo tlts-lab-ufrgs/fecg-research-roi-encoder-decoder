@@ -26,7 +26,7 @@ TOTAL_FILES = 5
 RESULTS_PATH = "/home/julia/Documents/fECG_research/research_dev/autoencoder_with_mask/results/"
 DATA_PATH =  "/home/julia/Documents/fECG_research/datasets/abdominal-and-direct-fetal-ecg-database-1.0.0/"
 
-CHANNELS = 4
+CHANNELS = 3
 LEN_BATCH = 512
 QRS_DURATION = 0.1  # seconds, max
 QRS_DURATION_STEP = 50
@@ -53,15 +53,16 @@ MODEL_INPUT_SHAPE = (BATCH_SIZE, LEN_BATCH, CHANNELS)
 #     # w_signal = i[1]
 
 w_mask = 0.3
-w_signal = 0.3
+w_signal = 0.1
 w_combined = 1 - w_mask - w_signal
 
 
-for i in range(TOTAL_FILES - 1, -1, -1):
+# for i in range(TOTAL_FILES - 1, -1, -1):
+for i in range(0, TOTAL_FILES, 1):
     
     # i = 4
 
-    prefix_id = f'280224_CUTTED_CHANNEL_VAL_LOSS_DROPOUT_LR_{UPPER_LIM_LR}-W_MASK_{w_mask}-W_SIG_{w_signal}-LEFT_{i}'
+    prefix_id = f'010324-3CH-VAL_LOSS-MOD_DA6-LR_{UPPER_LIM_LR}-W_MASK_{w_mask}-W_SIG_{w_signal}-LEFT_{i}'
     
     
     print(prefix_id)
@@ -87,6 +88,7 @@ for i in range(TOTAL_FILES - 1, -1, -1):
         ground_truth=training_data[1],
         testing_data=testing_data[0], 
         ground_truth_testing=testing_data[1], 
+        epochs=150
     )
 
     history, testing_metrics, predict = model.fit_and_evaluate()

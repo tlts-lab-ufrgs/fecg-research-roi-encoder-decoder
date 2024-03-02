@@ -34,7 +34,27 @@ ann = wfdb.rdann('/home/julia/Documents/fECG_research/datasets/ninfea-non-invasi
 
 #%%
 
+PATH = ''
+
+
 doppler_signals = loadmat(f'{PATH}pwd_signals/{FILENUMBER}envelopes.mat')
+
+#%%
+
+
+from oct2py import octave as oct
+oct.eval("cd /home/tasos/Desktop")
+oct.eval("myscript")
+oct.eval("save -v7 myworkspace.mat")
+
+from scipy.io import loadmat
+D = loadmat("/home/tasos/Desktop/myworkspace.mat")
+
+PATH = '/home/julia/Documents/fECG_research/datasets/our_fecgsyn_db/maternal_ecg/'
+filename = '/home/julia/Documents/fECG_research/datasets/our_fecgsyn_db/maternal_ecg/fecgsyn01_snr00dB_l2_c1.mat'
+
+
+doppler_signals = loadmat(filename)
 
 #%%
 
