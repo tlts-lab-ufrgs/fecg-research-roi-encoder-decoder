@@ -1,6 +1,7 @@
 import mne
 import glob
 import numpy as np
+from scipy.signal import resample
 
 from utils.gaussian_function import gaussian
 
@@ -94,7 +95,8 @@ def data_resizer(
     qrs_duration, 
     qrs_len,
     type_of_file='edf', 
-    training=False
+    training=False, 
+    resample_fs=1
 ):
     
         # training file
@@ -112,36 +114,39 @@ def data_resizer(
             except:
                 continue
     
+        
+    
+        resampled_signal = np.zeros(shape=(5, int(np.shape(raw_data)[-1] / resample_fs)))
+        for j in range(5):
+            resampled_signal[j, :] = resample(raw_data[j, :], int(np.shape(raw_data)[-1] / resample_fs))
+    
+    
             
         # Generates masks
-        mask = np.zeros(shape=file_info.times.shape)
+        mask = np.zeros(shape=int(np.shape(raw_data)[-1] / resample_fs))
 
         for step in time_annotations:
 
             center_index = np.where(file_info.times == step)[0][0]
 
             qrs_region = np.where(
-                (file_info.times >= (step - qrs_duration)) &
-                (file_info.times <= (step + qrs_duration))
+                (file_info.times[::resample_fs] > (step - qrs_duration)) &
+                (file_info.times[::resample_fs] < (step + qrs_duration))
             )[0]
             
-            mask[qrs_region] = gaussian(qrs_region, center_index, qrs_len / 2)
+            mask[qrs_region] = gaussian(qrs_region, center_index / resample_fs, qrs_len / 2)
             
             
         if 'r10' in file:
-            filedata = raw_data[[0, 1, 2, 4]]
+            filedata = resampled_signal[[0, 1, 2, 4]]
         else:
-            filedata = raw_data[[0, 2, 3, 4]]
+            filedata = resampled_signal[[0, 2, 3, 4]]
 
         # filedata = np.copy(raw_data)
         
-        # if 'r10' in file:
-        #     filedata[3] = np.zeros_like(filedata[3])
-
         batch = 0              
                
-        # for batch in range(0, UPPER_LIMIT, len_data):
-        while batch <= file_info.times.shape[0] - len_data:
+        while batch <= np.shape(filedata)[-1] - len_data:
             
             
             if 'r10' in file and batch in to_remove:
@@ -166,20 +171,6 @@ def data_resizer(
 
             chunked_data *= (1 / max_abdominal) 
             chunked_fecg_real_data *= (1 / max_fecg)
-            
-            # change signal in aecg from r10
-            # if 'r10' in file:
-                
-            #     t = np.arange(len(chunked_data[:, 2])) / 1000
-            #     baseline_wandering = np.zeros_like(chunked_data[:, 2])
-                
-            #     for _ in range(int(np.random.uniform(low=0, high=15))):
-            #         frequency = np.random.uniform(low=0.1, high=1)  # Random low frequency
-            #         phase = np.random.uniform(0, 2 * np.pi)  # Random phase
-            #         component = 0.1 * np.sin(2 * np.pi * frequency * t + phase)
-            #         baseline_wandering += component
-                
-            #     chunked_data[:, 2] += baseline_wandering
             
             chunked_fecg_data = np.array([
                 chunked_fecg_real_data, 
@@ -210,6 +201,7 @@ def data_loader(
     leave_for_testing,
     whole_dataset_training=False,
     type_of_file='edf', 
+    resample_fs=1,
     dataset = ''
 ):
     
@@ -233,6 +225,7 @@ def data_loader(
         qrs_duration, 
         qrs_len, 
         type_of_file, 
+        resample_fs
     )
     
     if whole_dataset_training:
@@ -244,7 +237,8 @@ def data_loader(
             len_data, 
             qrs_duration, 
             qrs_len, 
-            type_of_file
+            type_of_file, 
+            resample_fs
         )
     
     
