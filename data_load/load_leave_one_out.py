@@ -115,11 +115,12 @@ def data_resizer(
                 continue
     
         
-    
-        resampled_signal = np.zeros(shape=(5, int(np.shape(raw_data)[-1] / resample_fs)))
-        for j in range(5):
-            resampled_signal[j, :] = resample(raw_data[j, :], int(np.shape(raw_data)[-1] / resample_fs))
-    
+        if resample_fs != 1:
+            resampled_signal = np.zeros(shape=(5, int(np.shape(raw_data)[-1] / resample_fs)))
+            for j in range(5):
+                resampled_signal[j, :] = resample(raw_data[j, :], int(np.shape(raw_data)[-1] / resample_fs))
+        else:
+            resample_fs = np.copy(raw_data)
     
             
         # Generates masks
