@@ -103,11 +103,15 @@ def data_resizer(
         # Read data and annotations
         
         if type_of_file == 'edf':
-            file_info = mne.io.read_raw_edf(file)
-            raw_data = file_info.get_data()
-            annotations = mne.read_annotations(file)
-            time_annotations = annotations.onset
-        
+            
+            try:
+                file_info = mne.io.read_raw_edf(file)
+                raw_data = file_info.get_data()
+                annotations = mne.read_annotations(file)
+                time_annotations = annotations.onset
+            except:
+                continue
+    
             
         # Generates masks
         mask = np.zeros(shape=file_info.times.shape)
@@ -205,12 +209,19 @@ def data_loader(
     qrs_len,
     leave_for_testing,
     whole_dataset_training=False,
-    type_of_file='edf'
+    type_of_file='edf', 
+    dataset = ''
 ):
     
     # get the filenames and filter the left out
     
     filenames = glob.glob(path + "*." + type_of_file)
+    
+    if dataset == 'nifecg':
+        
+        to_consider = [154, 192, 244, 274, 290, 323, 368, 444, 597, 733, 746, 811, 826, 906,]
+
+        filenames = [i for i in filenames if int(i.split('ecgca')[-1].replace('.edf', '')) in to_consider ]
     
     if not whole_dataset_training:
     

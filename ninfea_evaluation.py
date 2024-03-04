@@ -15,10 +15,15 @@ from utils.gaussian_function import gaussian
 from data_load.load_leave_one_out import data_resizer
 from utils.lr_scheduler import callback as lr_scheduler
 
+from scipy.signal import resample
+from sklearn.datasets import load_digits
+from sklearn.decomposition import FastICA
+from scipy.io import loadmat
+
 #%%
 
 model = tf.keras.models.load_model(
-    '/home/julia/Documents/fECG_research/research_dev/autoencoder_with_mask/final_model_3ch_512/', 
+    '/home/julia/Documents/fECG_research/research_dev/autoencoder_with_mask/final_model_3ch/', 
     custom_objects = {
         'mse_mask': Metric.mse_mask,
         'mse_signal': Metric.mse_signal, 
@@ -30,45 +35,67 @@ model = tf.keras.models.load_model(
 
 #%%
 
-QRS_LEN = 50 # +- 125 pontos fazem o esmo que no abcd, fs = 250
-LEN_DATA = 512
+QRS_LEN = 100 # +- 125 pontos fazem o esmo que no abcd, fs = 250
+LEN_DATA = 1024
 
-DATA_PATH = '/home/julia/Documents/fECG_research/datasets/our_fecgsyn_db'
+DATA_PATH = '/home/julia/Documents/fECG_research/datasets/ninfea-non-invasive-multimodal-foetal-ecg-doppler-dataset-for-antenatal-cardiology-research-1.0.0/'
 
-# %% load data
+#%%
+doppler_signals = loadmat(f'{DATA_PATH}/pwd_signals/{4}envelopes')
 
-syn_case = 3
-snr = '03'
+#%% load data
 
-for i in range(1, 2, 1):  # subjects
+high_risk = [
+    6,
+    7,
+    8,
+    12,
+    18,
+    19,
+    24,
+    27,
+    34,
+    37,
+    38,
+    47,
+    48,
+    49,
+    50,
+    53,
+    54,
+    58
+]
+
+# signal, label = wfdb.rdsamp(
+#     f'{PATH}/wfdb_format_ecg_and_respiration/23')
+INIT_SUB = 60
+END_SUB = 60
+
+for i in range(INIT_SUB, END_SUB + 1, 1):  # subjects
     
-    i = f'0{i}' if i < 10 else 10 
     
-    for j in range(1,6):  #repetitions
+    mecg_file = f'{DATA_PATH}/wfdb_format_ecg_and_respiration/{i}'
     
+    mecg_signal, labels_mecg = wfdb.rdsamp(mecg_file)
     
-        mecg_file = f'{DATA_PATH}/{i}_snr{snr}dB_l{j}_c{syn_case}_mecg'
-        fecg_file = f'{DATA_PATH}/{i}_snr{snr}dB_l{j}_c{syn_case}_fecg1'
-        noise_file = f'{DATA_PATH}/{i}_snr{snr}dB_l{j}_c{syn_case}_noise1'
 
 
-        mecg_signal, labels_mecg = wfdb.rdsamp(mecg_file)
-        fecg_signal, labels_fecg = wfdb.rdsamp(fecg_file)
-        noise_signal, labels_noise = wfdb.rdsamp(noise_file)
+    filtered_channels = mecg_signal[:, [7, 14, 11]]
         
-        # mecg_signal += noise_signal
+    size_array = int(labels_mecg['sig_len'])
+    
+    
+    resampled_signal = np.zeros(shape=(int(size_array / 2) - 100, 3))
+    
+    for j in range(3):
         
-        filtered_channels = mecg_signal[:, [3,9,13]]
-        filtered_channels_fecg = fecg_signal[:, 3]
+        resampled_signal[:, j] = resample(filtered_channels[:, j], int(size_array / 2))[100:]
+    
+    
+    transformer = FastICA()
+    X_transformed = transformer.fit_transform(resampled_signal)
+    
 
-        # time_annotations = wfdb.rdann(
-        #     fecg_file,
-        #     extension='qrs'
-        # )
-        
-        # Generates masks
-        
-        size_array = int(labels_mecg['sig_len'])
         # mask = np.zeros(shape=(size_array))
 
         # for step in time_annotations.sample:
@@ -92,52 +119,55 @@ for i in range(1, 2, 1):  # subjects
         # if training:
             # UPPER_LIMIT = int(np.power(2, np.round(np.log2(2 * file_info.times.shape[0]), 0)))
         # else: 
-        UPPER_LIMIT = int(np.power(2, np.round(np.log2(float(labels_mecg['sig_len'])), 0)))
-        
-        for batch in range(0, UPPER_LIMIT, LEN_DATA):
+    UPPER_LIMIT = int(size_array/2) - 100- LEN_DATA
+    
+    batch = 0
+    
+    while batch < UPPER_LIMIT:        
 
-
-            chunked_data = filtered_channels[(batch): ((batch + LEN_DATA)), :]
+        chunked_data = np.copy(resampled_signal[(batch): ((batch + LEN_DATA)), :])
             
-            chunked_fecg_real_data = filtered_channels_fecg[(batch): (batch + LEN_DATA)]
+            # chunked_fecg_real_data = filtered_channels_fecg[(batch): (batch + LEN_DATA)]
             # chunked_fecg_binary_data = mask[(batch): (batch + LEN_DATA)]
 
             
             # Data Normalization
 
-            chunked_data += np.abs(np.min(chunked_data)) # to zero things
-            chunked_fecg_real_data += np.abs(np.min(chunked_fecg_real_data)) # to zero things
+        min_data = np.min(chunked_data)
+        chunked_data -= min_data # to zero things
+            # chunked_fecg_real_data += np.abs(np.min(chunked_fecg_real_data)) # to zero things
             
+        max_data = np.max(chunked_data)
 
-            chunked_data *= (1 / np.abs(np.max(chunked_data)))
-            chunked_fecg_real_data *= (1 / np.abs(np.max(chunked_fecg_real_data)))
+        chunked_data *= (1 / max_data)
+            # chunked_fecg_real_data *= (1 / np.abs(np.max(chunked_fecg_real_data)))
             
             
-            chunked_fecg_data = np.array([
-                chunked_fecg_real_data, 
-                # chunked_fecg_binary_data
-            ]).transpose()
+            # chunked_fecg_data = np.array([
+            #     chunked_fecg_real_data, 
+            #     chunked_fecg_binary_data
+            # ]).transpose()
 
-            if i == '01' and j == 1 and batch == 0:
+        if i == INIT_SUB and batch == 0:
 
-                aECG_store = np.copy([chunked_data])
-                fECG_store = np.copy([chunked_fecg_data])
+            aECG_store = np.copy([chunked_data])
+                # fECG_store = np.copy([chunked_fecg_data])
 
-            else:
-                aECG_store = np.vstack((aECG_store, [chunked_data]))
-                fECG_store = np.vstack((fECG_store, [chunked_fecg_data]))
+        else:
+            aECG_store = np.vstack((aECG_store, [chunked_data]))
+                # fECG_store = np.vstack((fECG_store, [chunked_fecg_data]))
     
+        batch += LEN_DATA
+
+#%%%
+prediction = model.predict(aECG_store)
+
 #%%
 
-predict = model.predict(aECG_store)
-#%%
-index= 10
+index = 1
+plt.plot(aECG_store[index, :])
 
-plt.plot(fECG_store[index])
-plt.plot(predict[index])
-# plt.plot(aECG_store[index])
-
-# plt.plot(prediction[9])
+# plt.plot(prediction[index])
 
 # plt.plot(fECG_store[2])
 

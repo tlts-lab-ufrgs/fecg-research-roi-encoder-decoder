@@ -66,7 +66,7 @@ model = ProposedAE(
 history, _, _ = model.fit_and_evaluate()
 
 #%%
-model.save('/home/julia/Documents/fECG_research/research_dev/autoencoder_with_mask/final_model_3ch/')
+model.save('/home/julia/Documents/fECG_research/research_dev/autoencoder_with_mask/final_model_3ch_512/')
 
 #%%
 

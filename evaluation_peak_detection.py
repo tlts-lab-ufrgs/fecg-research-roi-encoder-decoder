@@ -67,7 +67,7 @@ RESULTS_PATH = "/home/julia/Documents/fECG_research/research_dev/autoencoder_wit
 DATA_PATH =  "/home/julia/Documents/fECG_research/datasets/abdominal-and-direct-fetal-ecg-database-1.0.0/"
 
 CHANNELS = 3
-LEN_BATCH = 1024
+LEN_BATCH = 512
 QRS_DURATION = 0.1  # seconds, max
 QRS_DURATION_STEP = 50
 
@@ -131,7 +131,8 @@ for file in glob.glob(DATA_PATH + '/*.edf'):
 
 #%% concat results of the same dir
 
-this_files = '020324-LEN_DATA_1024-3CH-VAL_LOSS-MOD_DA6-LR_0.0001'
+this_files = '010324-3CH-VAL_LOSS-MOD_DA6-LR_0.0001'
+
 results_dir = glob.glob(RESULTS_PATH + this_files + '*')
 
 result_qrs = {}
@@ -260,7 +261,7 @@ for w in [
             
             # Fit the double Gaussian to the data
             
-            peaks_proposed = find_peaks(prediction_data['mask'].values, height=0.7, distance=200)
+            peaks_proposed = find_peaks(prediction_data['mask'].values, height=0.7, distance=300)
               
            
             for p in peaks_proposed[0]:
@@ -392,6 +393,10 @@ for i in range(5):
     )
 
 #%%
+
+f1_store = []
+recall_store = []
+precision_store = []
 
 print('id\tf1\tf1_pt\trecall\trecall_pt\ts\ts_pt\acc')
 
@@ -541,6 +546,10 @@ for j in [0, 1, 2, 3, 4]:
         (total_peaks + false_positive)
     )
     
+    f1_store.append(f1)
+    recall_store.append(recall)
+    precision_store.append(s)
+    
     print(
         '\t'.join(
             [
@@ -567,5 +576,10 @@ def mean_confidence_interval(data, confidence=0.95):
     return m, se, m-h, m+h
 
 
+#%%
+
+print(mean_confidence_interval(f1_store))
+print(mean_confidence_interval(recall_store))
+print(mean_confidence_interval(precision_store))
 
 # %%
