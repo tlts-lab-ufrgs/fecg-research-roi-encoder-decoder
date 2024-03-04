@@ -25,33 +25,15 @@ import mne
 import glob
 import numpy as np
 import pandas as pd
-import tensorflow as tf
-import scipy.stats
 import matplotlib.pyplot as plt
 from ecgdetectors import panPeakDetect, Detectors
 from scipy.signal import find_peaks
-from scipy.stats import shapiro
 
 from data_load.load_leave_one_out import data_loader
+from utils.mean_confidence_interval import mean_confidence_interval
 
 #%% definition for fitting
-
-# Define the function for a Gaussian distribution
-def gaussian(x, amplitude, mean, stddev):
-    return amplitude * np.exp(-((x - mean) / stddev) ** 2 / 2)
-
-# Define the function for the sum of two Gaussians
-def double_gaussian(x, amplitude1, mean1, stddev1, amplitude2, mean2, stddev2):
-    return (
-        gaussian(x, amplitude1, mean1, stddev1) +
-        gaussian(x, amplitude2, mean2, stddev2)
-    )
-    
-def single_gaussian(x, amplitude1, mean1, stddev1):
-    return (
-        gaussian(x, amplitude1, mean1, stddev1)
-    )
-        
+       
     
 def mse_function(y_true, y_pred):
     
@@ -60,26 +42,33 @@ def mse_function(y_true, y_pred):
     )
     
     return mse_value
-    
 
-def mean_confidence_interval(data, confidence=0.95):
-    a = 1.0 * np.array(data)
-    n = len(a)
-    m, se = np.mean(a), scipy.stats.sem(a)
-    h = se * scipy.stats.norm.ppf((1 + confidence) / 2.)
-    return m, se, m-h, m+h
 #%% constants 
 
+FILES_TO_CALCULATE = '040324-RESAMPLED_SIGNAL_250-LR_0.0001'
+
+# [w_mask, w_signal]
+WEIGHTS_TO_EVAL = [
+    [0.3, 0.1]
+] 
+
+SAMPLING_FREQ = 250
+
+CHANNELS = 3
+RESAMPLING_FREQUENCY_RATIO = int(1000 / SAMPLING_FREQ)
 
 RESULTS_PATH = "/home/julia/Documents/fECG_research/research_dev/autoencoder_with_mask/results/"
 DATA_PATH =  "/home/julia/Documents/fECG_research/datasets/abdominal-and-direct-fetal-ecg-database-1.0.0/"
 
-CHANNELS = 3
-LEN_BATCH = 512
-QRS_DURATION = 0.1  # seconds, max
-QRS_DURATION_STEP = 50
+NUMBER_OF_FILES = 5
 
-TEST_FILE = 4
+# All constants are defined based on a 1000Hz fs
+LEN_BATCH = int(512 / RESAMPLING_FREQUENCY_RATIO)
+LIMT_GAUS = int(50 / RESAMPLING_FREQUENCY_RATIO)
+QRS_DURATION = 0.1  # seconds, max
+QRS_DURATION_STEP = int(50 / RESAMPLING_FREQUENCY_RATIO)
+MIN_QRS_DISTANCE = int(300 / RESAMPLING_FREQUENCY_RATIO) # fs = 1000Hz
+MASK_MIN_HEIGHT = 0.7
 
 #%% data load
 
@@ -106,12 +95,12 @@ for file in glob.glob(DATA_PATH + '/*.edf'):
                 QRS_DURATION, 
                 QRS_DURATION_STEP,
                 leave_for_testing=filenames.index(file),
-                type_of_file='edf'
+                type_of_file='edf', 
+                resample_fs=RESAMPLING_FREQUENCY_RATIO
             )
 
     fecg_testing_data = this_testing_data[1]
     fecg_roi = fecg_testing_data[:, :, 0] * fecg_testing_data[:, :, 1]
-    
     
     testing_data[filenames.index(file)] = {
         'signal': fecg_testing_data,
@@ -121,13 +110,11 @@ for file in glob.glob(DATA_PATH + '/*.edf'):
 
 #%% concat results of the same dir
 
-this_files = '010324-3CH-VAL_LOSS-MOD_DA6-LR_0.0001'
-
-results_dir = glob.glob(RESULTS_PATH + this_files + '*')
+results_dir = glob.glob(RESULTS_PATH + FILES_TO_CALCULATE + '*')
 
 result_qrs = {}
 
-detectors = Detectors(1000) # fs = frequencia de sampling
+detectors = Detectors(SAMPLING_FREQ) # fs = frequencia de sampling
 
 to_remove = [
     40,
@@ -152,7 +139,8 @@ to_remove = [
     179,
     180,
     181,
-    182,183,
+    182,
+    183,
     184,
     185,
     186,
@@ -214,14 +202,12 @@ to_remove = [
 
 this_weights_results = {}
 
-for w in [
-    [0.3, 0.1]
-]:
+for w in WEIGHTS_TO_EVAL:
 
-    for j in range(5):
+    for j in range(NUMBER_OF_FILES):
 
         print(j)        
-        dir = f'{this_files}-W_MASK_{w[0]}-W_SIG_{w[1]}-LEFT_{j}'
+        dir = f'{FILES_TO_CALCULATE}-W_MASK_{w[0]}-W_SIG_{w[1]}-LEFT_{j}'
         
         w_mask = w[0]
         w_signal = w[1]
@@ -237,7 +223,7 @@ for w in [
             prediction_index = int(file.split('-prediction_')[1].split('-')[0].replace('.csv', ''))
         
             
-            if j == 4 and prediction_index in to_remove:
+            if j == 4 and int(prediction_index / RESAMPLING_FREQUENCY_RATIO) in to_remove:
                 continue
             
             prediction_data = pd.read_csv(file, names=['signal', 'mask'])
@@ -249,13 +235,17 @@ for w in [
             
             # Fit the double Gaussian to the data
             
-            peaks_proposed = find_peaks(prediction_data['mask'].values, height=0.7, distance=300)
+            peaks_proposed = find_peaks(
+                prediction_data['mask'].values, 
+                height=MASK_MIN_HEIGHT, 
+                distance=MIN_QRS_DISTANCE
+            )
               
            
             for p in peaks_proposed[0]:
             
-                lower_limit_mask = 0 if p - 50 < 0 else p - 50
-                upper_limit_mask = LEN_BATCH if p + 50 > LEN_BATCH else p + 50
+                lower_limit_mask = 0 if p - QRS_DURATION_STEP < 0 else p - QRS_DURATION_STEP
+                upper_limit_mask = LEN_BATCH if p + QRS_DURATION_STEP > LEN_BATCH else p + QRS_DURATION_STEP
 
                 roi_predicted = prediction_data['mask'][lower_limit_mask : upper_limit_mask]
                 
@@ -265,8 +255,8 @@ for w in [
                 
             this_real = fecg_real_data[f'{j}'][prediction_index * LEN_BATCH : prediction_index * LEN_BATCH + LEN_BATCH]
 
-            r_peaks_combined = panPeakDetect(prediction_data['combined-binary'].values, 200)
-            r_peaks_signal = panPeakDetect(prediction_data['signal'].values, 200)
+            r_peaks_combined = panPeakDetect(prediction_data['combined-binary'].values, int(SAMPLING_FREQ / 5))
+            r_peaks_signal = panPeakDetect(prediction_data['signal'].values, int(SAMPLING_FREQ / 5))
             
             for r in r_peaks_combined:
                 pan_tom_qrs_detection.append(r  + prediction_index * LEN_BATCH)
@@ -278,80 +268,18 @@ for w in [
         this_weights_results[f'{dir}-pan-combined'] = pan_tom_qrs_detection
         this_weights_results[f'{dir}-pan-signal'] = pan_tom_qrs_detection_signal
 
-#%%
 
-print('id\tf1_pt\tacc_pt')
-
-for i in range(5):
-    
-    r_peaks = detectors.pan_tompkins_detector(fecg_real_data[f'{i}'])
-    
-    true_positive = 0
-    false_positive = 0
-    false_negative = 0
-    total_peaks = 0
-    
-    true_positive_pt = 0
-    false_positive_pt = 0
-    false_negative_pt = 0
-
-    limit = 262144
-
-    for peak in annotations_data[f'{i}'] * 1000:
-        
-        if peak <= limit:
-            
-            total_peaks += 1
-        
-        
-            lower_limit = peak - 30
-            upper_limit = peak + 30
-            
-            
-            peak_found_pt = np.where(
-                (np.array(r_peaks >= lower_limit)) & 
-                (np.array(r_peaks <= upper_limit))
-            )
-            
-                
-            if len(peak_found_pt[0]) > 0:
-            
-                true_positive_pt += 1
-            else:
-                false_negative_pt += 1
-        
-
-
-    f1_pt = true_positive_pt / (
-        true_positive_pt + 0.5 * (false_positive_pt + false_negative_pt)
-    )
-    
-    
-    acc_pt = true_positive_pt / (
-        (total_peaks)
-    )
-    
-    print(
-        '\t'.join(
-            [
-                f'{i}', 
-                f'{f1_pt}', 
-                f'{acc_pt}'
-            ]
-        )
-    )
-
-#%%
+#%% calculate metrics
 
 f1_store = []
 recall_store = []
 precision_store = []
 
-print('id\tf1\tf1_pt\trecall\trecall_pt\ts\ts_pt\acc')
+print('file_id\tf1\tf1_pt\trecall\trecall_pt\tprecision\tprecision_pt\acc')
 
-for j in [0, 1, 2, 3, 4]:
+for j in range(NUMBER_OF_FILES):
     
-    dir = f'{this_files}-W_MASK_{w[0]}-W_SIG_{w[1]}-LEFT_{j}'
+    dir = f'{FILES_TO_CALCULATE}-W_MASK_{w[0]}-W_SIG_{w[1]}-LEFT_{j}'
     
     true_positive = 0
     false_positive = 0
@@ -364,11 +292,11 @@ for j in [0, 1, 2, 3, 4]:
     false_positive_pt = 0
     false_negative_pt = 0
 
-    limit = 298976
+    limit = 29696# 149760
 
-    for peak in annotations_data[f'{j}'] * 1000:
+    for peak in annotations_data[f'{j}'] * SAMPLING_FREQ:
         
-        if j == 4 and int(np.floor(peak / LEN_BATCH)) in to_remove:
+        if j == 4 and int(np.floor(peak / LEN_BATCH) * RESAMPLING_FREQUENCY_RATIO) in to_remove:
             continue
         
         if peak <= limit:
@@ -376,8 +304,8 @@ for j in [0, 1, 2, 3, 4]:
             total_peaks += 1
         
         
-            lower_limit = peak - 30
-            upper_limit = peak + 30
+            lower_limit = peak - LIMT_GAUS
+            upper_limit = peak + LIMT_GAUS
             
             peak_found = np.where(
                 (np.array(this_weights_results[f'{dir}-proposed']) >= lower_limit) & 
@@ -406,8 +334,8 @@ for j in [0, 1, 2, 3, 4]:
     for peak in this_weights_results[f'{dir}-proposed']:
         
         already_counted = np.where(
-            (np.array(already_mentioned_peaks) >= peak - 50) & 
-            (np.array(already_mentioned_peaks) <= peak + 50)
+            (np.array(already_mentioned_peaks) >= peak - LIMT_GAUS) & 
+            (np.array(already_mentioned_peaks) <= peak + LIMT_GAUS)
         )
         
         # this case is specially for roi at the end or beggining of an file
@@ -417,12 +345,12 @@ for j in [0, 1, 2, 3, 4]:
             )
         
         if len(already_counted[0]) == 0 and len(already_counted_as_true[0]) == 0:
-            lower_limit = peak - 30
-            upper_limit = peak + 30
+            lower_limit = peak - LIMT_GAUS
+            upper_limit = peak + LIMT_GAUS
                 
             peak_found = np.where(
-                (np.array(annotations_data[f'{j}'] * 1000) >= lower_limit) & 
-                (np.array(annotations_data[f'{j}'] * 1000) <= upper_limit)
+                (np.array(annotations_data[f'{j}'] * SAMPLING_FREQ) >= lower_limit) & 
+                (np.array(annotations_data[f'{j}'] * SAMPLING_FREQ) <= upper_limit)
             )
             
             if len(peak_found[0]) == 0:
@@ -437,8 +365,8 @@ for j in [0, 1, 2, 3, 4]:
     for peak in this_weights_results[f'{dir}-pan-combined']:
         
         already_counted = np.where(
-            (np.array(already_mentioned_peaks) >= peak - 50) & 
-            (np.array(already_mentioned_peaks) <= peak + 50)
+            (np.array(already_mentioned_peaks) >= peak - LIMT_GAUS) & 
+            (np.array(already_mentioned_peaks) <= peak + LIMT_GAUS)
         )
         
         # this case is specially for roi at the end or beggining of an file
@@ -448,12 +376,12 @@ for j in [0, 1, 2, 3, 4]:
             )
         
         if len(already_counted[0]) == 0 and len(already_counted_as_true[0]) == 0:
-            lower_limit = peak - 30
-            upper_limit = peak + 30
+            lower_limit = peak - LIMT_GAUS
+            upper_limit = peak + LIMT_GAUS
                 
             peak_found = np.where(
-                (np.array(annotations_data[f'{j}'] * 1000) >= lower_limit) & 
-                (np.array(annotations_data[f'{j}'] * 1000) <= upper_limit)
+                (np.array(annotations_data[f'{j}'] * SAMPLING_FREQ) >= lower_limit) & 
+                (np.array(annotations_data[f'{j}'] * SAMPLING_FREQ) <= upper_limit)
             )
             
             if len(peak_found[0]) == 0:
@@ -471,7 +399,7 @@ for j in [0, 1, 2, 3, 4]:
         true_positive + (false_negative)
     )
     
-    s = true_positive / (
+    precision = true_positive / (
         true_positive + (false_positive)
     )
     
@@ -483,7 +411,7 @@ for j in [0, 1, 2, 3, 4]:
         true_positive_pt + (false_negative_pt)
     )
     
-    s_pt = true_positive_pt / (
+    precision_pt = true_positive_pt / (
      true_positive_pt + (false_positive_pt)
     )
     
@@ -497,7 +425,7 @@ for j in [0, 1, 2, 3, 4]:
     
     f1_store.append(f1)
     recall_store.append(recall)
-    precision_store.append(s)
+    precision_store.append(precision)
     
     print(
         '\t'.join(
@@ -507,8 +435,8 @@ for j in [0, 1, 2, 3, 4]:
                 f'{f1_pt}', 
                 f'{recall}', 
                 f'{recall_pt}', 
-                f'{s}', 
-                f'{s_pt}', 
+                f'{precision}', 
+                f'{precision_pt}', 
                 f'{acc}'
             ]
         )
@@ -517,7 +445,7 @@ for j in [0, 1, 2, 3, 4]:
 
 #%%
 
-print(mean_confidence_interval(f1_store))
+print(mean_confidence_interval(f1_store, name='f1-score'))
 print(mean_confidence_interval(recall_store))
 print(mean_confidence_interval(precision_store))
 
