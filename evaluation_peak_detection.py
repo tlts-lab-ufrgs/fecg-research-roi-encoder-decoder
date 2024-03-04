@@ -26,6 +26,7 @@ import glob
 import numpy as np
 import pandas as pd
 import tensorflow as tf
+import scipy.stats
 import matplotlib.pyplot as plt
 from ecgdetectors import panPeakDetect, Detectors
 from scipy.signal import find_peaks
@@ -60,6 +61,13 @@ def mse_function(y_true, y_pred):
     
     return mse_value
     
+
+def mean_confidence_interval(data, confidence=0.95):
+    a = 1.0 * np.array(data)
+    n = len(a)
+    m, se = np.mean(a), scipy.stats.sem(a)
+    h = se * scipy.stats.norm.ppf((1 + confidence) / 2.)
+    return m, se, m-h, m+h
 #%% constants 
 
 
@@ -110,24 +118,6 @@ for file in glob.glob(DATA_PATH + '/*.edf'):
         'roi_signal': fecg_roi
     }
   
-#%%
-
-# for file in filenames:
-    
-#     file_info = mne.io.read_raw_edf(file)
-#     filedata = file_info.get_data()
-
-#     fig, ax = plt.subplots(5, 1)
-    
-#     ax[0].plot(filedata[0], label='fECG')
-#     ax[1].plot(filedata[1], label='aECG 1')
-#     ax[2].plot(filedata[2], label='aECG 2')
-#     ax[3].plot(filedata[3], label='aECG 3')
-#     ax[4].plot(filedata[4], label='aECG 4')
-    
-#     # fig, ax = plt.subplots()
-    
-#     # ax.plot(filedata)
 
 #%% concat results of the same dir
 
@@ -225,9 +215,7 @@ to_remove = [
 this_weights_results = {}
 
 for w in [
-    # [0.3, 0.3], 
     [0.3, 0.1]
-    # [0.1, 0.6000000000000001]
 ]:
 
     for j in range(5):
@@ -272,28 +260,11 @@ for w in [
                 roi_predicted = prediction_data['mask'][lower_limit_mask : upper_limit_mask]
                 
                 if roi_predicted.diff().max() < 0.5:
-                # stat, p_value = shapiro(roi_predicted)
-
-                # print(f'Statistics={stat:.3f}, p-value={p_value:.3f}')
-
-                # # Interpret the p-value
-                # alpha = 0.05
-                # if p_value > alpha:
-                
                     qrs_detection.append(int(p + prediction_index * LEN_BATCH))
-                # else:
-                #     fig, ax = plt.subplots()
-                #     ax.set_title(f'{j} - {p} - {prediction_index}')
-                #     ax.plot(roi_predicted)
-                #     ax.plot(roi_predicted.diff())
-                #     ax.plot(roi_predicted.diff().diff())
+
                 
             this_real = fecg_real_data[f'{j}'][prediction_index * LEN_BATCH : prediction_index * LEN_BATCH + LEN_BATCH]
-            
-            # prediction_data['combined-not-norm'] = np.max(this_real + np.abs(np.min(this_real))) * (prediction_data['combined-binary']) - np.abs(np.min(this_real))
-            # prediction_data['signal-not-norm'] = np.max(this_real + np.abs(np.min(this_real))) * (prediction_data['signal']) - np.abs(np.min(this_real))
-            
-                
+
             r_peaks_combined = panPeakDetect(prediction_data['combined-binary'].values, 200)
             r_peaks_signal = panPeakDetect(prediction_data['signal'].values, 200)
             
@@ -306,28 +277,6 @@ for w in [
         this_weights_results[f'{dir}-proposed'] = qrs_detection
         this_weights_results[f'{dir}-pan-combined'] = pan_tom_qrs_detection
         this_weights_results[f'{dir}-pan-signal'] = pan_tom_qrs_detection_signal
-
-#%% form data frame
-
-# peaks_qrs = [round(qrs_detection[i], 0) for i in qrs_detection]
-# peaks_qrs_pan = [round(pan_tom_qrs_detection[i], 0) for i in pan_tom_qrs_detection]
-
-
-
-#%%
-
-file_info = mne.io.read_raw_edf(filenames[1])
-filedata = file_info.get_data()
-
-plt.plot(filedata[0], alpha=0.5)
-plt.scatter(qrs_detection, np.zeros(shape=(np.shape(qrs_detection))), marker='x', color='black')
-# plt.scatter(pan_tom_qrs_detection, np.zeros(shape=(np.shape(pan_tom_qrs_detection))), marker='.', color='red')
-plt.scatter(annotations.onset * 1000, 5e-4 + np.zeros(shape=np.shape(annotations.onset)))
-
-plt.vlines(70, ymin=-5e-4, ymax=5e-4)
-plt.vlines(110, ymin=-5e-4, ymax=5e-4)
-
-plt.xlim(0, 1000)
 
 #%%
 
@@ -564,16 +513,6 @@ for j in [0, 1, 2, 3, 4]:
             ]
         )
     )
-# %%
-
-import scipy.stats
-
-def mean_confidence_interval(data, confidence=0.95):
-    a = 1.0 * np.array(data)
-    n = len(a)
-    m, se = np.mean(a), scipy.stats.sem(a)
-    h = se * scipy.stats.norm.ppf((1 + confidence) / 2.)
-    return m, se, m-h, m+h
 
 
 #%%
