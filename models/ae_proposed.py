@@ -58,14 +58,6 @@ class CustomDataAugmentation(tf.keras.layers.Layer):
                 augmented_inputs = np.copy(inputs)            
             
             
-            # random_small_peak = np.zeros(shape=(512))
-            # init_random_peak = np.random.randint(0, 513 - 20)
-            # random_small_peak[init_random_peak : init_random_peak + 21] = 0.1 * np.sin(0.1 * np.pi * np.arange(0, 21))
-            
-            # for i in range(np.shape(augmented_inputs)[-1]):
-            #     augmented_inputs[i] += random_small_peak
-            
-            
             for i in [0, 1, 2, 3]:
                 # gaussian noise
                 mu = 0
@@ -150,15 +142,12 @@ class Loss:
     def loss(self, y_true, y_pred):
         
         y_true_mod = tf.multiply(y_true[:, :, 0], y_true[:, :, 1])
-        # y_pred_mod = tf.multiply(y_pred[:, :, 0], y_pred[:, :, 1])
         
         y2_pred_combined = tf.multiply(y_pred[:, :, 0], y_true[:, :, 1])
         y1_pred_combined = tf.multiply(y_true[:, :, 0], y_pred[:, :, 1])
         
         y_pred_combined = y1_pred_combined + y2_pred_combined
 
-        
-        # loss_combined =  tf.keras.losses.logcosh(y_true_mod, y_pred_combined) 
         
         loss_combined = (
             tf.keras.losses.logcosh(y_true_mod, y2_pred_combined) + 
@@ -257,14 +246,10 @@ class ProposedAE:
             output_padding=0
         )(x)
         x = self.conv_block(x, num_filters=512, kernel_size=1, padding='valid', activation='relu')
-        # x = Dropout(0.1)(x)
         
         decoder = self.decoder_block(x, encoder_block3, 256, kernel_size=4, activation='relu')
-        # decoder = Dropout(0.1)(decoder)
         decoder = self.decoder_block(decoder, encoder_block2, 128, kernel_size=4, activation='relu')
-        # decoder = Dropout(0.1)(decoder)
         decoder = self.decoder_block(decoder, encoder_block1, 64, kernel_size=4, activation='relu')
-        # decoder = Dropout(0.1)(decoder)
         
 
         # Last upsampling
@@ -290,13 +275,9 @@ class ProposedAE:
     def signal_decoder_block(self, x, encoder_block1, encoder_block2, encoder_block3, encoder_block4):
 
         decoder = self.decoder_block(x, encoder_block4[:, :, 0:256], 256, kernel_size=4)
-        # decoder = Dropout(0.1)(decoder)
         decoder = self.decoder_block(decoder, encoder_block3[:, :, 0:128], 128, kernel_size=4)
-        # decoder = Dropout(0.1)(decoder)
         decoder = self.decoder_block(decoder, encoder_block2[:, :, 0:64], 64, kernel_size=4)
-        # decoder = Dropout(0.1)(decoder)
         decoder = self.decoder_block(decoder, encoder_block1[:, :, 0:32], 32, kernel_size=4)
-        # decoder = Dropout(0.1)(decoder)
 
         x = self.conv_block(decoder, num_filters=512, kernel_size=2, padding='valid', activation='relu')
         
@@ -380,12 +361,12 @@ class ProposedAE:
                 self.ground_truth, 
                 epochs=self.total_epochs, 
                 batch_size=self.batch_size,
-                # validation_data=(self.testing_data, self.ground_truth_testing),
+                validation_data=(self.testing_data, self.ground_truth_testing),
                 # validation_split=0.20,
                 shuffle=True, 
                 callbacks=[
                     lr_scheduler,
-                    # patience_callback('val_loss', self.epochs_in_patience)
+                    patience_callback('val_loss', self.epochs_in_patience)
                 ],
             )
         
