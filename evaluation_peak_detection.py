@@ -45,14 +45,14 @@ def mse_function(y_true, y_pred):
 
 #%% constants 
 
-FILES_TO_CALCULATE = '040324-RESAMPLED_SIGNAL_250-LR_0.0001'
+FILES_TO_CALCULATE = '050324-3CH-DROPOUTMOD-LR_0.0001'
 
 # [w_mask, w_signal]
 WEIGHTS_TO_EVAL = [
     [0.3, 0.1]
 ] 
 
-SAMPLING_FREQ = 250
+SAMPLING_FREQ = 1000
 
 CHANNELS = 3
 RESAMPLING_FREQUENCY_RATIO = int(1000 / SAMPLING_FREQ)
@@ -69,6 +69,8 @@ QRS_DURATION = 0.1  # seconds, max
 QRS_DURATION_STEP = int(50 / RESAMPLING_FREQUENCY_RATIO)
 MIN_QRS_DISTANCE = int(300 / RESAMPLING_FREQUENCY_RATIO) # fs = 1000Hz
 MASK_MIN_HEIGHT = 0.7
+
+LIMIT = int(300000 / RESAMPLING_FREQUENCY_RATIO)# - LEN_BATCH
 
 #%% data load
 
@@ -222,8 +224,7 @@ for w in WEIGHTS_TO_EVAL:
             
             prediction_index = int(file.split('-prediction_')[1].split('-')[0].replace('.csv', ''))
         
-            
-            if j == 4 and int(prediction_index / RESAMPLING_FREQUENCY_RATIO) in to_remove:
+            if j == 4 and int(prediction_index) in to_remove:
                 continue
             
             prediction_data = pd.read_csv(file, names=['signal', 'mask'])
@@ -292,14 +293,12 @@ for j in range(NUMBER_OF_FILES):
     false_positive_pt = 0
     false_negative_pt = 0
 
-    limit = 29696# 149760
-
     for peak in annotations_data[f'{j}'] * SAMPLING_FREQ:
         
-        if j == 4 and int(np.floor(peak / LEN_BATCH) * RESAMPLING_FREQUENCY_RATIO) in to_remove:
+        if j == 4 and int(np.floor(peak / LEN_BATCH)) in to_remove:
             continue
         
-        if peak <= limit:
+        if peak <= LIMIT:
             
             total_peaks += 1
         
@@ -358,7 +357,6 @@ for j in range(NUMBER_OF_FILES):
                 false_positive += 1
             
         already_mentioned_peaks.append(peak)
-    # print(total_peaks)
     
     already_counted = []
     

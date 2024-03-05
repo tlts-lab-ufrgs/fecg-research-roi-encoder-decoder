@@ -6,6 +6,7 @@ import pandas as pd
 import tensorflow as tf
 from keras import backend as K
 from numba import cuda
+import matplotlib.pyplot as plt
 
 from data_load.load_leave_one_out import data_loader
 from models.ae_proposed import ProposedAE
@@ -27,11 +28,13 @@ RESULTS_PATH = "/home/julia/Documents/fECG_research/research_dev/autoencoder_wit
 DATA_PATH =  "/home/julia/Documents/fECG_research/datasets/abdominal-and-direct-fetal-ecg-database-1.0.0/"
 
 CHANNELS = 3
-LEN_BATCH = 1024
+LEN_BATCH = 512
 QRS_DURATION = 0.1  # seconds, max
-QRS_DURATION_STEP = 50
+QRS_DURATION_STEP = 12
 
 MODEL_INPUT_SHAPE = (BATCH_SIZE, LEN_BATCH, CHANNELS)
+
+RESAMPLE_FREQ_RATIO = 1
 
 
 #%% loop in variables
@@ -57,12 +60,11 @@ w_signal = 0.1
 w_combined = 1 - w_mask - w_signal
 
 
-# for i in range(TOTAL_FILES - 1, -1, -1):
-for i in range(0, TOTAL_FILES, 1):
+for i in range(0,1, 1):
     
     # i = 4
 
-    prefix_id = f'020324-LEN_DATA_1024-3CH-VAL_LOSS-MOD_DA6-LR_{UPPER_LIM_LR}-W_MASK_{w_mask}-W_SIG_{w_signal}-LEFT_{i}'
+    prefix_id = f'050324-3CH-DROPOUTMOD-LR_{UPPER_LIM_LR}-W_MASK_{w_mask}-W_SIG_{w_signal}-LEFT_{i}'
     
     
     print(prefix_id)
@@ -74,9 +76,10 @@ for i in range(0, TOTAL_FILES, 1):
             QRS_DURATION, 
             QRS_DURATION_STEP,
             leave_for_testing=i,
-            type_of_file='edf'
+            type_of_file='edf', 
+            resample_fs=RESAMPLE_FREQ_RATIO
     )
-
+    
     model = ProposedAE(
         MODEL_INPUT_SHAPE, 
         BATCH_SIZE, 
@@ -117,14 +120,6 @@ for i in range(0, TOTAL_FILES, 1):
     del model
     del history
     del predict  
-    
-    K.clear_session()
-    tf.compat.v1.reset_default_graph()
-    # try:
-    #     cuda.select_device(0)
-    #     cuda.close()
-    # except:
-    #     print('cuda retunr an error')
 
 
 # %%

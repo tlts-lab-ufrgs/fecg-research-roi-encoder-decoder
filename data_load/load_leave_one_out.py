@@ -226,7 +226,7 @@ def data_loader(
         qrs_duration, 
         qrs_len, 
         type_of_file, 
-        resample_fs
+        resample_fs=resample_fs
     )
     
     if whole_dataset_training:
@@ -239,7 +239,7 @@ def data_loader(
             qrs_duration, 
             qrs_len, 
             type_of_file, 
-            resample_fs
+            resample_fs=resample_fs
         )
     
     

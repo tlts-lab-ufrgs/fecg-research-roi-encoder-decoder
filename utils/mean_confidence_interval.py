@@ -8,6 +8,6 @@ def mean_confidence_interval(data, name='', confidence=0.95):
     m, se = np.mean(a), scipy.stats.sem(a)
     h = se * scipy.stats.norm.ppf((1 + confidence) / 2.)
     
-    to_return = f'{name} \n {round(m * 100, 4)} $\pm$ {round(se * 100, 4)} ({round((m-h) * 100, 4)} - {round((m+h) * 100, 4)})'
+    to_return = f'{name} \n {round(m, 4)} $\pm$ {round(se, 4)} ({round((m-h), 4)} - {round((m+h), 4)})'
     
     return to_return
