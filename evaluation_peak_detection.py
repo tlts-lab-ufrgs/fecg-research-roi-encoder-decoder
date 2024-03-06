@@ -45,7 +45,8 @@ def mse_function(y_true, y_pred):
 
 #%% constants 
 
-FILES_TO_CALCULATE = '050324-3CH-DROPOUTMOD-LR_0.0001'
+FILES_TO_CALCULATE = '060324-3CH-LR_0.0005'
+# results/010324-3CH-VAL_LOSS-MOD_DA6-LR_0.0001-W_MASK_0.3-W_SIG_0.1-LEFT_2
 
 # [w_mask, w_signal]
 WEIGHTS_TO_EVAL = [
@@ -64,7 +65,7 @@ NUMBER_OF_FILES = 5
 
 # All constants are defined based on a 1000Hz fs
 LEN_BATCH = int(512 / RESAMPLING_FREQUENCY_RATIO)
-LIMT_GAUS = int(50 / RESAMPLING_FREQUENCY_RATIO)
+LIMT_GAUS = int(30 / RESAMPLING_FREQUENCY_RATIO)
 QRS_DURATION = 0.1  # seconds, max
 QRS_DURATION_STEP = int(50 / RESAMPLING_FREQUENCY_RATIO)
 MIN_QRS_DISTANCE = int(300 / RESAMPLING_FREQUENCY_RATIO) # fs = 1000Hz
@@ -118,90 +119,6 @@ result_qrs = {}
 
 detectors = Detectors(SAMPLING_FREQ) # fs = frequencia de sampling
 
-to_remove = [
-    40,
-    41,
-    42,
-    43,
-    44,
-    45,
-    46,
-    47,
-    48,
-    49,
-    50,
-    51,
-    52,
-    56,
-    57,
-    58,
-    59,
-    60,
-    177,
-    179,
-    180,
-    181,
-    182,
-    183,
-    184,
-    185,
-    186,
-    187,
-    188,
-    189,
-    190,
-    197,
-    198,
-    199,
-    200,
-    201,
-    202,
-    203,
-    204,
-    205,
-    206,
-    207,
-    311,
-    312,
-    313,
-    314,
-    315,
-    316,
-    317,
-    318,
-    319,
-    320,
-    335, 
-    336, 
-    338,
-    339,
-    340,
-    341,
-    343,
-    365,
-    371,
-    393,
-    394,
-    395,
-    396,
-    397,
-    398,
-    399,
-    400,
-    401,
-    402,
-    403,
-    404,
-    405,
-    406,
-    407,
-    408,
-    409,
-    410,
-    411,
-    412,
-]
-
 this_weights_results = {}
 
 for w in WEIGHTS_TO_EVAL:
@@ -223,10 +140,6 @@ for w in WEIGHTS_TO_EVAL:
         for file in result_files:
             
             prediction_index = int(file.split('-prediction_')[1].split('-')[0].replace('.csv', ''))
-        
-            if j == 4 and int(prediction_index) in to_remove:
-                continue
-            
             prediction_data = pd.read_csv(file, names=['signal', 'mask'])
             prediction_data['binary_mask'] = prediction_data['mask'].where(prediction_data['mask'] == 0, 1)
             
@@ -278,7 +191,7 @@ precision_store = []
 
 print('file_id\tf1\tf1_pt\trecall\trecall_pt\tprecision\tprecision_pt\acc')
 
-for j in range(NUMBER_OF_FILES):
+for j in [4]: #range(NUMBER_OF_FILES):
     
     dir = f'{FILES_TO_CALCULATE}-W_MASK_{w[0]}-W_SIG_{w[1]}-LEFT_{j}'
     
@@ -295,99 +208,64 @@ for j in range(NUMBER_OF_FILES):
 
     for peak in annotations_data[f'{j}'] * SAMPLING_FREQ:
         
-        if j == 4 and int(np.floor(peak / LEN_BATCH)) in to_remove:
-            continue
         
         if peak <= LIMIT:
             
             total_peaks += 1
         
-        
             lower_limit = peak - LIMT_GAUS
             upper_limit = peak + LIMT_GAUS
             
             peak_found = np.where(
-                (np.array(this_weights_results[f'{dir}-proposed']) >= lower_limit) & 
-                (np.array(this_weights_results[f'{dir}-proposed']) <= upper_limit)
+                (np.array(this_weights_results[f'{dir}-proposed']) >= peak - LIMT_GAUS) & 
+                (np.array(this_weights_results[f'{dir}-proposed']) <= peak + LIMT_GAUS)
             )
             
             peak_found_pt = np.where(
-                (np.array(this_weights_results[f'{dir}-pan-combined']) >= lower_limit) & 
-                (np.array(this_weights_results[f'{dir}-pan-combined']) <= upper_limit)
+                (np.array(this_weights_results[f'{dir}-pan-combined']) >= peak - LIMT_GAUS) & 
+                (np.array(this_weights_results[f'{dir}-pan-combined']) <= peak + LIMT_GAUS)
             )
             
             if len(peak_found[0]) > 0:
-                true_positive_peaks.append(peak_found[0][0])
+                for k in peak_found[0]:
+                    true_positive_peaks.append(k)
+                    
                 true_positive += 1
             else:
                 false_negative += 1
                 
             if len(peak_found_pt[0]) > 0:
-                true_positive_peaks_pt.append(peak_found_pt[0][0])
+                for k in peak_found_pt[0]:
+                    true_positive_peaks_pt.append(k)
                 true_positive_pt += 1
             else:
                 false_negative_pt += 1
     
-    already_mentioned_peaks = []  
-    
-    for peak in this_weights_results[f'{dir}-proposed']:
-        
-        already_counted = np.where(
-            (np.array(already_mentioned_peaks) >= peak - LIMT_GAUS) & 
-            (np.array(already_mentioned_peaks) <= peak + LIMT_GAUS)
-        )
-        
-        # this case is specially for roi at the end or beggining of an file
-        already_counted_as_true = np.where(
-                (np.array(true_positive_peaks) >= lower_limit) & 
-                (np.array(true_positive_peaks) <= upper_limit)
-            )
-        
-        if len(already_counted[0]) == 0 and len(already_counted_as_true[0]) == 0:
-            lower_limit = peak - LIMT_GAUS
-            upper_limit = peak + LIMT_GAUS
-                
-            peak_found = np.where(
-                (np.array(annotations_data[f'{j}'] * SAMPLING_FREQ) >= lower_limit) & 
-                (np.array(annotations_data[f'{j}'] * SAMPLING_FREQ) <= upper_limit)
-            )
+    for peak_predicted in this_weights_results[f'{dir}-proposed']:
+        if peak_predicted not in true_positive_peaks and peak_predicted <= LIMIT:
             
-            if len(peak_found[0]) == 0:
+            possible_ann = np.where(
+                (annotations_data[f'{j}'] * SAMPLING_FREQ >= peak_predicted - LIMT_GAUS) &
+                (annotations_data[f'{j}'] * SAMPLING_FREQ <= peak_predicted + LIMT_GAUS)
+            )[0]
+            
+            if len(possible_ann) == 0:
                 
                 false_positive += 1
-            
-        already_mentioned_peaks.append(peak)
-    
-    already_counted = []
-    
-    for peak in this_weights_results[f'{dir}-pan-combined']:
-        
-        already_counted = np.where(
-            (np.array(already_mentioned_peaks) >= peak - LIMT_GAUS) & 
-            (np.array(already_mentioned_peaks) <= peak + LIMT_GAUS)
-        )
-        
-        # this case is specially for roi at the end or beggining of an file
-        already_counted_as_true = np.where(
-                (np.array(true_positive_peaks_pt) >= lower_limit) & 
-                (np.array(true_positive_peaks_pt) <= upper_limit)
-            )
-        
-        if len(already_counted[0]) == 0 and len(already_counted_as_true[0]) == 0:
-            lower_limit = peak - LIMT_GAUS
-            upper_limit = peak + LIMT_GAUS
                 
-            peak_found = np.where(
-                (np.array(annotations_data[f'{j}'] * SAMPLING_FREQ) >= lower_limit) & 
-                (np.array(annotations_data[f'{j}'] * SAMPLING_FREQ) <= upper_limit)
-            )
+    for peak_predicted in this_weights_results[f'{dir}-pan-combined']:
+        if peak_predicted not in true_positive_peaks_pt and peak_predicted <= LIMIT:
             
-            if len(peak_found[0]) == 0:
+            possible_ann = np.where(
+                (annotations_data[f'{j}'] * SAMPLING_FREQ >= peak_predicted - LIMT_GAUS) &
+                (annotations_data[f'{j}'] * SAMPLING_FREQ <= peak_predicted + LIMT_GAUS)
+            )[0]
+            
+            if len(possible_ann) == 0:
                 
                 false_positive_pt += 1
-            
-        already_mentioned_peaks.append(peak)
-    # print(total_peaks)
+
+
 
     f1 = true_positive / (
         true_positive + 0.5 * (false_positive + false_negative)

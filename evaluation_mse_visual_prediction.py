@@ -40,91 +40,6 @@ def mse_function(y_true, y_pred):
     
     return mse_value
 
-to_remove = [
-    40,
-    41,
-    42,
-    43,
-    44,
-    45,
-    46,
-    47,
-    48,
-    49,
-    50,
-    51,
-    52,
-    56,
-    57,
-    58,
-    59,
-    60,
-    177,
-    179,
-    180,
-    181,
-    182,
-    183,
-    184,
-    185,
-    186,
-    187,
-    188,
-    189,
-    190,
-    197,
-    198,
-    199,
-    200,
-    201,
-    202,
-    203,
-    204,
-    205,
-    206,
-    207,
-    311,
-    312,
-    313,
-    314,
-    315,
-    316,
-    317,
-    318,
-    319,
-    320,
-    335, 
-    336, 
-    338,
-    339,
-    340,
-    341,
-    343,
-    365,
-    371,
-    393,
-    394,
-    395,
-    396,
-    397,
-    398,
-    399,
-    400,
-    401,
-    402,
-    403,
-    404,
-    405,
-    406,
-    407,
-    408,
-    409,
-    410,
-    411,
-    412,
-]
-
-
 #%% data load
 
 testing_data = {}
@@ -160,7 +75,7 @@ for i in range(5):
 
 
 #%% concat results of the same dir
-results_dir = glob.glob(RESULTS_PATH + '010324-3CH-VAL_LOSS-MOD_DA6-LR_0.0001*')
+results_dir = glob.glob(RESULTS_PATH + '060324-3CH-LR_0.0005*')
 results_rows = []
 
 for i in results_dir:
@@ -180,11 +95,7 @@ for i in results_dir:
     for file in result_files:
         
         prediction_index = int(file.split('-prediction_')[1].split('-')[0].replace('.csv', ''))
-      
-        
-        if test_file == 4 and int(prediction_index) in to_remove:
-            continue
-        
+               
         prediction_data = pd.read_csv(file, names=['signal', 'mask'])
         prediction_data['binary_mask'] = prediction_data['mask'].where(prediction_data['mask'] == 0, 1)
         
@@ -220,7 +131,7 @@ for i in results_dir:
         # if prediction_index in [int(i / 512) for i in false_positive] and test_file == 0:
            
         if prediction_index in [
-            1
+            1,2,3,4,5,10,89,131
         ]: 
             fig, ax = plt.subplots()
             
