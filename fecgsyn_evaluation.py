@@ -38,7 +38,7 @@ DATA_PATH = '/home/julia/Documents/fECG_research/datasets/our_fecgsyn_db'
 # %% load data
 
 syn_case = 3
-snr = '03'
+snr = '00'
 
 for i in range(1, 2, 1):  # subjects
     

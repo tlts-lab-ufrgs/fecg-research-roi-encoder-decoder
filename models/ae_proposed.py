@@ -57,6 +57,7 @@ class CustomDataAugmentation(tf.keras.layers.Layer):
             else:
                 augmented_inputs = np.copy(inputs)            
             
+            len_batch = np.shape(augmented_inputs)[1]
             
             for i in [0, 1, 2, 3]:
                 # gaussian noise
@@ -79,8 +80,8 @@ class CustomDataAugmentation(tf.keras.layers.Layer):
             # second cuttoff
             
             channel_to_cutoff = np.random.randint(0, 4)
-            begin_of_region = np.random.randint(0, 513 - 10)
-            end_of_region = np.random.randint(begin_of_region + 50, 513)
+            begin_of_region = np.random.randint(0, len_batch - 10)
+            end_of_region = np.random.randint(begin_of_region + 50, len_batch)
             augmented_inputs[:, begin_of_region:end_of_region + 1, channel_to_cutoff] = 0 #np.full(shape=np.shape(augmented_inputs[:, :, channel_to_cutoff]), fill_value = np.max(augmented_inputs[:, :, channel_to_cutoff]))
                    
             # add a start of gaussian at the end of beginning of the file:
@@ -90,7 +91,7 @@ class CustomDataAugmentation(tf.keras.layers.Layer):
                 
                 
                 if at_the_end_of_data == 1:
-                    augmented_inputs[:, [490, 513]] += gaussian(np.arange(490, 513), np.random.randint(512, 65), 0.1)
+                    augmented_inputs[:, [len_batch - 20, len_batch]] += gaussian(np.arange(len_batch - 20, len_batch), np.random.randint(len_batch, 65), 0.1)
                 else:
                     augmented_inputs[:, [0, 30]] += gaussian(np.arange(0, 30), np.random.randint(0, -32), 0.1)
 
@@ -378,7 +379,7 @@ class ProposedAE:
                 shuffle=True, 
                 callbacks=[
                     lr_scheduler,
-                    patience_callback('val_loss', self.epochs_in_patience)
+                    # patience_callback('val_loss', self.epochs_in_patience)
                 ],
             )
         

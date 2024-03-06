@@ -36,14 +36,16 @@ model = tf.keras.models.load_model(
 
 # Range in learning rate
 UPPER_LIM_LR = 0.0001
-LOWER_LIMIT_LR = 0.00098
-LR_STEP = 0.00
+
+SAMPLING_FREQ = 1000
+
+RESAMPLE_FREQ_RATIO = 1
 
 # batch size
 BATCH_SIZE=4
 
 # files 
-TOTAL_FILES = 5
+FILES_TO_READ = [154, 192, 244, 274, 290, 323, 368, 444, 597, 733, 746, 811, 826, 906,]
 
 RESULTS_PATH = "/home/julia/Documents/fECG_research/research_dev/autoencoder_with_mask/results/"
 DATA_PATH =  "/home/julia/Documents/fECG_research/datasets/non-invasive-fetal-ecg-database-1.0.0/"
@@ -53,221 +55,136 @@ LEN_BATCH = 512
 QRS_DURATION = 0.1  # seconds, max
 QRS_DURATION_STEP = 50
 
-MODEL_INPUT_SHAPE = (BATCH_SIZE, LEN_BATCH, CHANNELS)
+RESAMPLING_FREQUENCY_RATIO = 1
 
 
-#%% loop in variables
-filenames = glob.glob(DATA_PATH + "*.edf")
+LEN_BATCH = int(512 / RESAMPLING_FREQUENCY_RATIO)
+LIMT_GAUS = int(50 / RESAMPLING_FREQUENCY_RATIO)
+QRS_DURATION = 0.1  # seconds, max
+QRS_DURATION_STEP = int(50 / RESAMPLING_FREQUENCY_RATIO)
+MIN_QRS_DISTANCE = int(300 / RESAMPLING_FREQUENCY_RATIO) # fs = 1000Hz
+MASK_MIN_HEIGHT = 0.7
+
+LIMIT = int(300000 / RESAMPLING_FREQUENCY_RATIO)# - LEN_BATCH
+
+#%%
+
+filenames = glob.glob(DATA_PATH + '*.edf')
+filenames = [i for i in filenames if int(i.split('ecgca')[-1].replace('.edf', '')) in FILES_TO_READ ]
+
+
+global_f1_score = []
+global_recall = []
+global_precision = []
+
+for file in filenames:
     
-to_consider = [154, 192, 244, 274, 290, 323, 368, 444, 597, 733, 746, 811, 826, 906,]
+    # Get data
+    
+    aECG, fECG =  data_resizer(    
+        [file],
+        LEN_BATCH, 
+        QRS_DURATION, 
+        QRS_DURATION_STEP,
+        type_of_file='edf', 
+        training=False, 
+        resample_fs=1
+    )
+    
+    annotations =  mne.read_annotations(file)
+    time_annotations = annotations.onset
 
-for i in range(0, len(filenames)):
+    # Model prediction
 
-    if int(filenames[i].split('ecgca')[-1].replace('.edf', '')) in to_consider:
+    predict = model.predict(aECG)
+    
+    # Metric assessment
+    qrs_detection = []
+    
+    true_positive = 0
+    false_positive = 0
+    false_negative = 0
+    total_peaks = 0
+    true_positive_peaks = []
+    
+    for i in range(np.shape(predict)[0]):
+    
+        peaks_proposed = find_peaks(
+            predict[i, :, 0], 
+            height=MASK_MIN_HEIGHT, 
+            distance=MIN_QRS_DISTANCE
+        )
+                
+            
+        for p in time_annotations * SAMPLING_FREQ:
+                
+            lower_limit_mask = 0 if p - QRS_DURATION_STEP < 0 else p - QRS_DURATION_STEP
+            upper_limit_mask = LEN_BATCH if p + QRS_DURATION_STEP > LEN_BATCH else p + QRS_DURATION_STEP
 
-        aECG, fECG = data_resizer(
-            [filenames[i]],
-            LEN_BATCH, 
-            QRS_DURATION, 
-            QRS_DURATION_STEP,
-            type_of_file='edf', 
-            training=False
+            roi_predicted = predict[i, int(lower_limit_mask) : int(upper_limit_mask), 0]
+                  
+            if len(roi_predicted) == 0:
+                continue
+                    
+            if np.max(np.diff(roi_predicted)) < 0.5:
+                qrs_detection.append(int(p + i * LEN_BATCH))
+                
+
+            already_mentioned_peaks = []  
+    
+        for peak in qrs_detection:
+            
+            lower_limit = peak - LIMT_GAUS
+            upper_limit = peak + LIMT_GAUS
+            
+            already_counted = np.where(
+                (np.array(already_mentioned_peaks) >= peak - LIMT_GAUS) & 
+                (np.array(already_mentioned_peaks) <= peak + LIMT_GAUS)
+            )
+            
+            # this case is specially for roi at the end or beggining of an file
+            already_counted_as_true = np.where(
+                    (np.array(true_positive_peaks) >= lower_limit) & 
+                    (np.array(true_positive_peaks) <= upper_limit)
+                )
+            
+            if len(already_counted[0]) == 0 and len(already_counted_as_true[0]) == 0:
+                lower_limit = peak - LIMT_GAUS
+                upper_limit = peak + LIMT_GAUS
+                    
+                peak_found = np.where(
+                    (np.array(time_annotations * SAMPLING_FREQ) >= lower_limit) & 
+                    (np.array(time_annotations * SAMPLING_FREQ) <= upper_limit)
+                )
+                
+                if len(peak_found[0]) == 0:
+                    
+                    false_positive += 1
+                
+            already_mentioned_peaks.append(peak)
+        
+        already_counted = []
+        
+
+        f1 = true_positive / (
+            true_positive + 0.5 * (false_positive + false_negative)
         )
         
-        annotations = mne.read_annotations(filenames[i])
-        time_annotations = annotations.onset
-
-        #%%
-
-        predict = model.predict(aECG)
-    
-
-        qrs_detection = []
-        annotations = []
-
-        for prediction_index in range(0, np.shape(predict[:, :, 1])[0]):
-
-            peaks_proposed = find_peaks(predict[prediction_index, :, 1], height=0.7, distance=200)
-                        
-                    
-            for p in peaks_proposed[0]:
-                        
-                lower_limit_mask = 0 if p - 50 < 0 else p - 50
-                upper_limit_mask = LEN_BATCH if p + 50 > LEN_BATCH else p + 50
-
-                roi_predicted = predict[:, lower_limit_mask : upper_limit_mask]
-                            
-                if np.max(np.diff(roi_predicted)) < 0.5:
-
-                            
-                    qrs_detection.append(int(p + prediction_index * LEN_BATCH))
-
-                    
-        # r_peaks_combined = panPeakDetect(prediction_data['combined-binary'].values, 200)
-        # r_peaks_signal = panPeakDetect(prediction_data['signal'].values, 200)
-                
-        # for r in r_peaks_combined:
-        #     pan_tom_qrs_detection.append(r  + prediction_index * LEN_BATCH)
-                    
-        # for r in r_peaks_signal:
-        #     pan_tom_qrs_detection_signal.append(r  + prediction_index * LEN_BATCH)
-            
-# %%
-
-# true_positive = 0
-#     false_positive = 0
-#     false_negative = 0
-#     total_peaks = 0
-#     true_positive_peaks = []
-#     true_positive_peaks_pt = []
-    
-#     true_positive_pt = 0
-#     false_positive_pt = 0
-#     false_negative_pt = 0
-
-#     limit = 298976
-
-#     for peak in annotations_data[f'{j}'] * 1000:
+        recall = true_positive / (
+            true_positive + (false_negative)
+        )
         
-#         if peak <= limit:
-            
-#             total_peaks += 1
+        precision = true_positive / (
+            true_positive + (false_positive)
+        )
         
+       
+        acc = true_positive / (
+            (total_peaks + false_positive)
+        )
         
-#             lower_limit = peak - 30
-#             upper_limit = peak + 30
-            
-#             peak_found = np.where(
-#                 (np.array(this_weights_results[f'{dir}-proposed']) >= lower_limit) & 
-#                 (np.array(this_weights_results[f'{dir}-proposed']) <= upper_limit)
-#             )
-            
-#             peak_found_pt = np.where(
-#                 (np.array(this_weights_results[f'{dir}-pan-combined']) >= lower_limit) & 
-#                 (np.array(this_weights_results[f'{dir}-pan-combined']) <= upper_limit)
-#             )
-            
-#             if len(peak_found[0]) > 0:
-#                 true_positive_peaks.append(peak_found[0][0])
-#                 true_positive += 1
-#             else:
-#                 false_negative += 1
-                
-#             if len(peak_found_pt[0]) > 0:
-#                 true_positive_peaks_pt.append(peak_found_pt[0][0])
-#                 true_positive_pt += 1
-#             else:
-#                 false_negative_pt += 1
-    
-#     already_mentioned_peaks = []  
-    
-#     for peak in this_weights_results[f'{dir}-proposed']:
-        
-#         already_counted = np.where(
-#             (np.array(already_mentioned_peaks) >= peak - 50) & 
-#             (np.array(already_mentioned_peaks) <= peak + 50)
-#         )
-        
-#         # this case is specially for roi at the end or beggining of an file
-#         already_counted_as_true = np.where(
-#                 (np.array(true_positive_peaks) >= lower_limit) & 
-#                 (np.array(true_positive_peaks) <= upper_limit)
-#             )
-        
-#         if len(already_counted[0]) == 0 and len(already_counted_as_true[0]) == 0:
-#             lower_limit = peak - 30
-#             upper_limit = peak + 30
-                
-#             peak_found = np.where(
-#                 (np.array(annotations_data[f'{j}'] * 1000) >= lower_limit) & 
-#                 (np.array(annotations_data[f'{j}'] * 1000) <= upper_limit)
-#             )
-            
-#             if len(peak_found[0]) == 0:
-                
-#                 false_positive += 1
-            
-#         already_mentioned_peaks.append(peak)
-#     # print(total_peaks)
-    
-#     already_counted = []
-    
-#     for peak in :
-        
-#         already_counted = np.where(
-#             (np.array(already_mentioned_peaks) >= peak - 50) & 
-#             (np.array(already_mentioned_peaks) <= peak + 50)
-#         )
-        
-#         # this case is specially for roi at the end or beggining of an file
-#         already_counted_as_true = np.where(
-#                 (np.array(true_positive_peaks_pt) >= lower_limit) & 
-#                 (np.array(true_positive_peaks_pt) <= upper_limit)
-#             )
-        
-#         if len(already_counted[0]) == 0 and len(already_counted_as_true[0]) == 0:
-#             lower_limit = peak - 30
-#             upper_limit = peak + 30
-                
-#             peak_found = np.where(
-#                 (np.array(annotations_data[f'{j}'] * 1000) >= lower_limit) & 
-#                 (np.array(annotations_data[f'{j}'] * 1000) <= upper_limit)
-#             )
-            
-#             if len(peak_found[0]) == 0:
-                
-#                 false_positive_pt += 1
-            
-#         already_mentioned_peaks.append(peak)
-#     # print(total_peaks)
+        global_f1_score.append(f1)
+        global_recall.append(recall)
+        global_precision.append(precision)
 
-#     f1 = true_positive / (
-#         true_positive + 0.5 * (false_positive + false_negative)
-#     )
-    
-#     recall = true_positive / (
-#         true_positive + (false_negative)
-#     )
-    
-#     s = true_positive / (
-#         true_positive + (false_positive)
-#     )
-    
-#     f1_pt = true_positive_pt / (
-#         true_positive_pt + 0.5 * (false_positive_pt + false_negative_pt)
-#     )
-    
-#     recall_pt = true_positive_pt / (
-#         true_positive_pt + (false_negative_pt)
-#     )
-    
-#     s_pt = true_positive_pt / (
-#      true_positive_pt + (false_positive_pt)
-#     )
-    
-#     acc = true_positive / (
-#         (total_peaks + false_positive)
-#     )
-    
-#     acc_pt = true_positive_pt / (
-#         (total_peaks + false_positive)
-#     )
-    
-#     f1_store.append(f1)
-#     recall_store.append(recall)
-#     precision_store.append(s)
-    
-#     print(
-#         '\t'.join(
-#             [
-#                 f'{j}', 
-#                 f'{f1}', 
-#                 f'{f1_pt}', 
-#                 f'{recall}', 
-#                 f'{recall_pt}', 
-#                 f'{s}', 
-#                 f'{s_pt}', 
-#                 f'{acc}'
-#             ]
-#         )
-#     )
+#%%

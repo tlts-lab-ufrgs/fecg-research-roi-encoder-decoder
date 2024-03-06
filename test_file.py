@@ -451,5 +451,3 @@ while i < lim_max - delta:
     
     i += delta
 
-
-# %%

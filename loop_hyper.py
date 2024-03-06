@@ -28,9 +28,9 @@ RESULTS_PATH = "/home/julia/Documents/fECG_research/research_dev/autoencoder_wit
 DATA_PATH =  "/home/julia/Documents/fECG_research/datasets/abdominal-and-direct-fetal-ecg-database-1.0.0/"
 
 CHANNELS = 3
-LEN_BATCH = 512
+LEN_BATCH = 256
 QRS_DURATION = 0.1  # seconds, max
-QRS_DURATION_STEP = 12
+QRS_DURATION_STEP = 25
 
 MODEL_INPUT_SHAPE = (BATCH_SIZE, LEN_BATCH, CHANNELS)
 
@@ -60,11 +60,11 @@ w_signal = 0.1
 w_combined = 1 - w_mask - w_signal
 
 
-for i in range(0,1, 1):
+for i in range(0, TOTAL_FILES, 1):
     
     # i = 4
 
-    prefix_id = f'050324-3CH-DROPOUTMOD-LR_{UPPER_LIM_LR}-W_MASK_{w_mask}-W_SIG_{w_signal}-LEFT_{i}'
+    prefix_id = f'060324-3CH-500-LR_{UPPER_LIM_LR}-W_MASK_{w_mask}-W_SIG_{w_signal}-LEFT_{i}'
     
     
     print(prefix_id)
@@ -80,6 +80,8 @@ for i in range(0,1, 1):
             resample_fs=RESAMPLE_FREQ_RATIO
     )
     
+    # lr = UPPER_LIM_LR / 0.85 if i == 4 else UPPER_LIM_LR
+    
     model = ProposedAE(
         MODEL_INPUT_SHAPE, 
         BATCH_SIZE, 
@@ -91,7 +93,7 @@ for i in range(0,1, 1):
         ground_truth=training_data[1],
         testing_data=testing_data[0], 
         ground_truth_testing=testing_data[1], 
-        epochs=150
+        epochs=100
     )
 
     history, testing_metrics, predict = model.fit_and_evaluate()
