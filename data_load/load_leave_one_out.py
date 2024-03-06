@@ -145,13 +145,14 @@ def data_resizer(
 
         # filedata = np.copy(raw_data)
         
-        batch = 0              
+        batch = 0
+        index = 0              
                
         while batch <= np.shape(filedata)[-1] - len_data:
             
-            
-            if 'r10' in file and batch in to_remove:
+            if 'r10' in file and index in to_remove:
                 batch += len_data
+                index += 1
                 continue
             
 
@@ -190,6 +191,7 @@ def data_resizer(
                 fECG_store = np.vstack((fECG_store, [chunked_fecg_data]))
 
             batch += len_data
+            index += 1
     
     
     return aECG_store, fECG_store
