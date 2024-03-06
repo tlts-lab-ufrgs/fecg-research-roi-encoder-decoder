@@ -164,7 +164,19 @@ class Loss:
         
 class ProposedAE:
     
-    def __init__(self, input_shape, batch_size, init_lr, w_mask, w_signal, w_combined, training_data, ground_truth, testing_data, ground_truth_testing, epochs = 250, epochs_in_patience = 15):
+    def __init__(self, 
+        input_shape, 
+        batch_size, 
+        init_lr, 
+        w_mask, 
+        w_signal, 
+        w_combined, 
+        training_data, 
+        ground_truth, 
+        testing_data, 
+        ground_truth_testing, 
+        epochs = 250, 
+        epochs_in_patience = 15):
         
         self.batch_size = batch_size
         self.input_shape = input_shape
