@@ -374,12 +374,10 @@ class ProposedAE:
                 self.ground_truth, 
                 epochs=self.total_epochs, 
                 batch_size=self.batch_size,
-                validation_data=(self.testing_data, self.ground_truth_testing),
-                # validation_split=0.20,
+                # validation_data=(self.testing_data, self.ground_truth_testing),
                 shuffle=True, 
                 callbacks=[
                     lr_scheduler,
-                    # patience_callback('val_loss', self.epochs_in_patience)
                 ],
             )
         
