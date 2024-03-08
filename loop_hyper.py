@@ -1,5 +1,5 @@
 
-#%%
+#%% Imports
 import os
 import numpy as np
 import pandas as pd
@@ -11,33 +11,33 @@ import matplotlib.pyplot as plt
 from data_load.load_leave_one_out import data_loader
 from models.ae_proposed import ProposedAE
 
-#%% constants
+#%% To run other experiments please change this below
 
-# Range in learning rate
-UPPER_LIM_LR = 0.0001
-LOWER_LIMIT_LR = 0.00098
-LR_STEP = 0.00
-
-# batch size
-BATCH_SIZE=4
-
-# files 
+# CHANGEBLE VARIABLES ---------------------------------------------------------------------------------------------- 
 TOTAL_FILES = 5
+CHANNELS = 4
+RESAMPLE_FREQ_RATIO = 1
+HAVE_DIRECT_FECG = True
 
 RESULTS_PATH = "/home/julia/Documents/fECG_research/research_dev/autoencoder_with_mask/results/"
 DATA_PATH =  "/home/julia/Documents/fECG_research/datasets/abdominal-and-direct-fetal-ecg-database-1.0.0/"
+# -------------------------------------------------------------------------------------------------------------------
 
-CHANNELS = 3
-LEN_BATCH = 256
+#%% Model constants
+
+BATCH_SIZE=4
+UPPER_LIM_LR = 0.0001
+LEN_BATCH = int(512 / RESAMPLE_FREQ_RATIO)
 QRS_DURATION = 0.1  # seconds, max
-QRS_DURATION_STEP = 25
+QRS_DURATION_STEP = int(50 / RESAMPLE_FREQ_RATIO)
 
 MODEL_INPUT_SHAPE = (BATCH_SIZE, LEN_BATCH, CHANNELS)
 
-RESAMPLE_FREQ_RATIO = 1
+w_mask = 0.3
+w_signal = 0.1
+w_combined = 1 - w_mask - w_signal
 
-
-#%% loop in variables
+#%% If you want to loop in weight parameters
 
 
 # for w_mask in np.arange(0.8, 1.1, 0.1):
@@ -55,21 +55,14 @@ RESAMPLE_FREQ_RATIO = 1
 #     # w_mask = i[0]
 #     # w_signal = i[1]
 
-w_mask = 0.3
-w_signal = 0.1
-w_combined = 1 - w_mask - w_signal
-
+#%% Loop in files to run cross-validation 
 
 for i in range(0, TOTAL_FILES, 1):
     
-    # i = 4
-
-    prefix_id = f'060324-3CH-500-LR_{UPPER_LIM_LR}-W_MASK_{w_mask}-W_SIG_{w_signal}-LEFT_{i}'
-    
+    prefix_id = f'080324-4CH-1000-LR_{UPPER_LIM_LR}-W_MASK_{w_mask}-W_SIG_{w_signal}-LEFT_{i}'
     
     print(prefix_id)
     
-
     training_data, testing_data = data_loader(
             DATA_PATH, 
             LEN_BATCH, 
@@ -77,10 +70,10 @@ for i in range(0, TOTAL_FILES, 1):
             QRS_DURATION_STEP,
             leave_for_testing=i,
             type_of_file='edf', 
-            resample_fs=RESAMPLE_FREQ_RATIO
+            resample_fs=RESAMPLE_FREQ_RATIO, 
+            channels=CHANNELS, 
+            fecg_on_gt=HAVE_DIRECT_FECG
     )
-    
-    # lr = UPPER_LIM_LR / 0.85 if i == 4 else UPPER_LIM_LR
     
     model = ProposedAE(
         MODEL_INPUT_SHAPE, 
