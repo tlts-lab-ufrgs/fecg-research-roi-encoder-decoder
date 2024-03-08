@@ -82,8 +82,10 @@ def mae_function(y_true, y_pred):
 #%%
 
 filenames = glob.glob(DATA_PATH + '*.edf')
-filenames = [i for i in filenames if int(i.split('ecgca')[-1].replace('.edf', '')) in FILES_TO_READ ]
+# filenames = [i for i in filenames if int(i.split('ecgca')[-1].replace('.edf', '')) in FILES_TO_READ ]
 
+
+false_positive_peaks_per_file = []
 
 global_f1_score = []
 global_recall = []
@@ -106,6 +108,9 @@ for file in filenames:
         channels=CHANNELS, 
         fecg_on_gt=False
     )
+    
+    if len(aECG) == 0:
+        continue
     
     annotations =  mne.read_annotations(file)
     time_annotations = annotations.onset
@@ -156,6 +161,7 @@ for file in filenames:
     false_negative = 0
     total_peaks = 0
     true_positive_peaks = []
+    false_positive_peaks = []
     
     for i in range(np.shape(predict)[0]):
     
@@ -207,7 +213,7 @@ for file in filenames:
             )[0]
 
             if len(possible_ann) == 0:
-
+                false_positive_peaks.append(peak_predicted)
                 false_positive += 1
    
     f1 = true_positive / (
@@ -226,6 +232,8 @@ for file in filenames:
     global_f1_score.append(f1)
     global_recall.append(recall)
     global_precision.append(precision)
+    
+    false_positive_peaks_per_file.append(false_positive_peaks)
 
 #%%
 
@@ -237,4 +245,17 @@ print(mean_confidence_interval(global_precision))
 print(mean_confidence_interval(global_mae_signal))
 print(mean_confidence_interval(global_mae_mask))
 print(mean_confidence_interval(global_mae_roi))
+# %%
+
+for index in range(0, 150):
+    
+    fig, ax = plt.subplots()
+    
+    ax.set_title(index)
+    
+    ax.plot(aECG[index], label='aecg')
+    ax.plot(predict[index, :, 1], label='predict')
+    ax.plot(fECG[index, :, 1], label='fecg')
+    
+    ax.legend()
 # %%

@@ -45,7 +45,7 @@ def mse_function(y_true, y_pred):
 
 #%% constants 
 
-FILES_TO_CALCULATE = '060324-3CH-500-LR_0.0001'
+FILES_TO_CALCULATE = '060324-3CH-MOD2-LR_0.0001'
 # results/010324-3CH-VAL_LOSS-MOD_DA6-LR_0.0001-W_MASK_0.3-W_SIG_0.1-LEFT_2
 
 # [w_mask, w_signal]
@@ -53,7 +53,7 @@ WEIGHTS_TO_EVAL = [
     [0.3, 0.1]
 ] 
 
-SAMPLING_FREQ = 500
+SAMPLING_FREQ = 1000
 
 CHANNELS = 3
 RESAMPLING_FREQUENCY_RATIO = int(1000 / SAMPLING_FREQ)
@@ -261,8 +261,8 @@ for w in WEIGHTS_TO_EVAL:
             r_peaks_combined = detectors.pan_tompkins_detector(prediction_data['combined-binary'].values)
             r_peaks_signal = detectors.pan_tompkins_detector(prediction_data['signal'].values)
 
-            # r_peaks_combined = panPeakDetect(prediction_data['combined-binary'].values, SAMPLING_FREQ)
-            # r_peaks_signal = panPeakDetect(prediction_data['signal'].values, SAMPLING_FREQ)
+            # r_peaks_combined = panPeakDetect(prediction_data['combined-binary'].values, SAML)
+            # r_peaks_signal = panPeakDetect(prediction_data['signal'].values, SAML)
             
             for r in r_peaks_combined:
                 pan_tom_qrs_detection.append(r  + prediction_index * LEN_BATCH)

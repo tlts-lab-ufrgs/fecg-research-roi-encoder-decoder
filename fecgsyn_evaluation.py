@@ -49,7 +49,7 @@ for i in range(1, 2, 1):  # subjects
     
         mecg_file = f'{DATA_PATH}/{i}_snr{snr}dB_l{j}_c{syn_case}_mecg'
         fecg_file = f'{DATA_PATH}/{i}_snr{snr}dB_l{j}_c{syn_case}_fecg1'
-        noise_file = f'{DATA_PATH}/{i}_snr{snr}dB_l{j}_c{syn_case}_noise1'
+        noise_file = f'{DATA_PATH}/{i}_snr{snr}dB_l{j}_c{syn_case}_noise2'
 
 
         mecg_signal, labels_mecg = wfdb.rdsamp(mecg_file)

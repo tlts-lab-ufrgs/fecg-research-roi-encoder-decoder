@@ -107,6 +107,7 @@ def data_resizer(
         
         # Read data and annotations
         
+        
         if type_of_file == 'edf':
             
             try:
@@ -142,13 +143,13 @@ def data_resizer(
             
         # Number of channels:
         
-        if channels == 3:    
-            if 'r10' in file: # abcd  file with wrong channel 
-                filedata = resampled_signal[[0, 1, 2, 4]]
-            else:
-                filedata = resampled_signal[[0, 2, 3, 4]]
-        if channels == 4:
-            filedata = np.copy(raw_data)
+        # if channels == 3:    
+            # if 'r10' in file: # abcd  file with wrong channel 
+                # filedata = resampled_signal[[0, 1, 2, 4]]
+            # else:
+        filedata = resampled_signal[[0, 2, 3, 4]]
+        # if channels == 4:
+        #     filedata = np.copy(raw_data)
         
         # If fecg dont exist in dataset, extract it from BSS ICA method
         
@@ -185,6 +186,9 @@ def data_resizer(
 
             chunked_data = filedata[1::, (batch): ((batch + len_data))].transpose()
             
+            if np.shape(chunked_data.transpose())[1] != len_data:
+                continue
+            
             chunked_fecg_real_data = filedata[0, (batch): (batch + len_data)]
             chunked_fecg_binary_data = mask[(batch): (batch + len_data)]
 
@@ -220,8 +224,10 @@ def data_resizer(
             batch += len_data
             index += 1
     
-    
-    return aECG_store, fECG_store
+    try:
+        return aECG_store, fECG_store
+    except:
+        return np.empty(shape=(0)), np.empty(shape=(0))
 
 def data_loader(
     path, 
@@ -240,12 +246,8 @@ def data_loader(
     # get the filenames and filter the left out
     
     filenames = glob.glob(path + "*." + type_of_file)
-    
-    if dataset == 'nifecg':
-        
-        to_consider = [154, 192, 244, 274, 290, 323, 368, 444, 597, 733, 746, 811, 826, 906,]
 
-        filenames = [i for i in filenames if int(i.split('ecgca')[-1].replace('.edf', '')) in to_consider ]
+    filenames = [i for i in filenames if int(i.split('ecgca')[-1].replace('.edf', '')) in to_consider ]
     
     if not whole_dataset_training:
     
