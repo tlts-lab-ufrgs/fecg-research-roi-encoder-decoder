@@ -2,6 +2,8 @@ import mne
 import glob
 import numpy as np
 from scipy.signal import resample
+from sklearn.decomposition import FastICA
+from sklearn.decomposition import PCA
 
 from utils.gaussian_function import gaussian
 
@@ -95,8 +97,9 @@ def data_resizer(
     qrs_duration, 
     qrs_len,
     type_of_file='edf', 
-    training=False, 
-    resample_fs=1
+    resample_fs=1, 
+    channels = 3, 
+    fecg_on_gt = True
 ):
     
         # training file
@@ -137,13 +140,37 @@ def data_resizer(
             
             mask[qrs_region] = gaussian(qrs_region, center_index / resample_fs, qrs_len / 2)
             
+        # Number of channels:
+        
+        if channels == 3:    
+            if 'r10' in file: # abcd  file with wrong channel 
+                filedata = resampled_signal[[0, 1, 2, 4]]
+            else:
+                filedata = resampled_signal[[0, 2, 3, 4]]
+        if channels == 4:
+            filedata = np.copy(raw_data)
+        
+        # If fecg dont exist in dataset, extract it from BSS ICA method
+        
+        if not fecg_on_gt:
             
-        if 'r10' in file:
-            filedata = resampled_signal[[0, 1, 2, 4]]
-        else:
-            filedata = resampled_signal[[0, 2, 3, 4]]
+            tmpdata = filedata[2]  # randomly choose this channel to retrieve fecg
+            
+            # calculate the number of components using eigenvalues
+            pca = PCA()
+            pca.fit(tmpdata.reshape(-1, 1))
+            perc = np.cumsum(pca.explained_variance_ratio_)
+            number_components = np.argmax(perc >= 0.999) + 1            
 
-        # filedata = np.copy(raw_data)
+                        
+            transformer = FastICA(number_components)
+            fecg_retrieved = transformer.fit_transform(tmpdata.reshape(-1, 1)) 
+        
+            print('fecg retrieved shappe', np.shape(fecg_retrieved))
+        
+            filedata[0] = fecg_retrieved[:, 0]
+        
+        # Loop in data
         
         batch = 0
         index = 0              
@@ -205,7 +232,9 @@ def data_loader(
     whole_dataset_training=False,
     type_of_file='edf', 
     resample_fs=1,
-    dataset = ''
+    dataset = '', 
+    channels = 3, 
+    fecg_on_gt = True
 ):
     
     # get the filenames and filter the left out
@@ -228,7 +257,9 @@ def data_loader(
         qrs_duration, 
         qrs_len, 
         type_of_file, 
-        resample_fs=resample_fs
+        resample_fs=resample_fs, 
+        channels = channels,  
+        fecg_on_gt = fecg_on_gt
     )
     
     if whole_dataset_training:
@@ -241,7 +272,9 @@ def data_loader(
             qrs_duration, 
             qrs_len, 
             type_of_file, 
-            resample_fs=resample_fs
+            resample_fs=resample_fs,
+            channels = channels, 
+            fecg_on_gt = fecg_on_gt
         )
     
     
