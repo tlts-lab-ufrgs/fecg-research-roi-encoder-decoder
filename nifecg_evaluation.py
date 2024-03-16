@@ -19,6 +19,7 @@ from scipy.signal import resample
 from sklearn.datasets import load_digits
 from sklearn.decomposition import FastICA
 from scipy.io import loadmat
+from ecgdetectors import panPeakDetect, Detectors
 
 from utils.mean_confidence_interval import mean_confidence_interval
 
@@ -59,6 +60,8 @@ QRS_DURATION_STEP = 50
 
 RESAMPLING_FREQUENCY_RATIO = 1
 
+detectors = Detectors(SAMPLING_FREQ) # fs = frequencia de sampling
+
 
 LEN_BATCH = int(512 / RESAMPLING_FREQUENCY_RATIO)
 LIMT_GAUS = int(50 / RESAMPLING_FREQUENCY_RATIO)
@@ -90,6 +93,9 @@ false_positive_peaks_per_file = []
 global_f1_score = []
 global_recall = []
 global_precision = []
+global_f1_score_pt = []
+global_recall_pt = []
+global_precision_pt = []
 global_mae_signal = []
 global_mae_mask = []
 global_mae_roi = []
@@ -154,14 +160,30 @@ for file in filenames:
     
     # ----------------- fQSR detection metric assessment
     
+    
     qrs_detection = []
     
     true_positive = 0
     false_positive = 0
     false_negative = 0
+    true_positive_pt = 0
+    false_positive_pt = 0
+    false_negative_pt = 0
     total_peaks = 0
     true_positive_peaks = []
     false_positive_peaks = []
+    true_positive_peaks_pt = []
+    false_positive_peaks_pt = []
+    
+    concat = np.empty(shape=0)
+
+    for i in range(np.shape(predict)[0]):
+        
+        concat = np.concatenate([concat, predict[i, :, 0]])
+
+    r_peaks_signal = detectors.pan_tompkins_detector(concat)
+
+
     
     for i in range(np.shape(predict)[0]):
     
@@ -203,6 +225,20 @@ for file in filenames:
             else:
                 false_negative += 1
                 
+            peak_found_pt = np.where(
+                (np.array(r_peaks_signal) >= peak - LIMT_GAUS) & 
+                (np.array(r_peaks_signal) <= peak + LIMT_GAUS)
+            )
+            
+            
+            if len(peak_found_pt[0]) > 0:
+                for k in peak_found_pt[0]:
+                    true_positive_peaks_pt.append(k)
+                    
+                true_positive_pt += 1
+            else:
+                false_negative_pt += 1
+                
     
     for peak_predicted in qrs_detection:
         if peak_predicted not in true_positive_peaks and peak_predicted <= LIMIT:
@@ -216,6 +252,19 @@ for file in filenames:
                 false_positive_peaks.append(peak_predicted)
                 false_positive += 1
    
+    for peak_predicted in r_peaks_signal:
+        if peak_predicted not in true_positive_peaks and peak_predicted <= LIMIT:
+            
+            possible_ann = np.where(
+                (time_annotations * SAMPLING_FREQ >= peak_predicted - LIMT_GAUS) &
+                (time_annotations * SAMPLING_FREQ <= peak_predicted + LIMT_GAUS)
+            )[0]
+
+            if len(possible_ann) == 0:
+                false_positive_peaks_pt.append(peak_predicted)
+                false_positive_pt += 1
+   
+   
     f1 = true_positive / (
         true_positive + 0.5 * (false_positive + false_negative)
     )
@@ -227,11 +276,27 @@ for file in filenames:
     precision = true_positive / (
         true_positive + (false_positive)
     )
+    
+    f1_pt = true_positive_pt / (
+        true_positive_pt + 0.5 * (false_positive_pt + false_negative_pt)
+    )
+
+    recall_pt = true_positive_pt / (
+        true_positive_pt + (false_negative_pt)
+    )
+
+    precision_pt = true_positive_pt / (
+        true_positive_pt + (false_positive_pt)
+    )
 
 
     global_f1_score.append(f1)
     global_recall.append(recall)
     global_precision.append(precision)
+    
+    global_f1_score_pt.append(f1_pt)
+    global_recall_pt.append(recall_pt)
+    global_precision_pt.append(precision_pt)
     
     false_positive_peaks_per_file.append(false_positive_peaks)
 
@@ -240,6 +305,12 @@ for file in filenames:
 print(mean_confidence_interval(global_f1_score, name='f1-score'))
 print(mean_confidence_interval(global_recall))
 print(mean_confidence_interval(global_precision))
+
+#%%
+
+print(mean_confidence_interval(global_f1_score_pt, name='f1-score'))
+print(mean_confidence_interval(global_recall_pt))
+print(mean_confidence_interval(global_precision_pt))
 # %%
 
 print(mean_confidence_interval(global_mae_signal))
@@ -247,15 +318,15 @@ print(mean_confidence_interval(global_mae_mask))
 print(mean_confidence_interval(global_mae_roi))
 # %%
 
-for index in range(0, 150):
+# for index in range(0, 150):
     
-    fig, ax = plt.subplots()
+#     fig, ax = plt.subplots()
     
-    ax.set_title(index)
+#     ax.set_title(index)
     
-    ax.plot(aECG[index], label='aecg')
-    ax.plot(predict[index, :, 1], label='predict')
-    ax.plot(fECG[index, :, 1], label='fecg')
+#     ax.plot(aECG[index], label='aecg')
+#     ax.plot(predict[index, :, 1], label='predict')
+#     ax.plot(fECG[index, :, 1], label='fecg')
     
-    ax.legend()
+#     ax.legend()
 # %%
