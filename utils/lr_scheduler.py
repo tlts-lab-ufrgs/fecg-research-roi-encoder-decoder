@@ -4,15 +4,13 @@ import numpy as np
 
 def scheduler(epoch, lr):
   
-  # return 0.0001 * (np.exp(-epoch/10) + 0.1* np.sin(np.pi * epoch/10)**2)
-
   if epoch < 10:
     return lr
   else:
-    # return 0.00001 * (np.exp(-epoch/10) + 0.1* np.sin(np.pi * epoch/10)**2)
     return lr * tf.math.exp(-0.1)
 
 def decayed_learning_rate(step, lr):
+  
   alpha = 0
   initial_decay_lr = 0.001
   step = min(step, 30)

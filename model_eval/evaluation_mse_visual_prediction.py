@@ -243,105 +243,105 @@ print(mean_confidence_interval(
 # %%
 
 
-#%%
+# #%%
 
-model = '060324-3CH-MOD2-LR_0.0001-W_MASK_0.3-W_SIG_0.1-LEFT_'
+# model = '060324-3CH-MOD2-LR_0.0001-W_MASK_0.3-W_SIG_0.1-LEFT_'
 
-plot1 = pd.read_csv(f'{RESULTS_PATH}{model}0/{model}0-prediction_1.csv', names=['signal', 'mask'])
-plot2 = pd.read_csv(f'{RESULTS_PATH}{model}1/{model}1-prediction_5.csv', names=['signal', 'mask'])
-plot3 = pd.read_csv(f'{RESULTS_PATH}{model}2/{model}2-prediction_70.csv', names=['signal', 'mask'])
-
-
-fig, ax = plt.subplots(3, 1, sharex=True)
-
-# High SNR
-ax[0].plot(
-    testing_data[1]['signal'][5, :, 0], 
-    label='Ground truth signal', 
-    )
-
-ax[0].plot(plot2['signal'], label='Predicted Signal')
-
-ax1 = ax[0].twinx()
-
-ax1.plot(
-    testing_data[1]['signal'][5, :, 1], 
-    label='Ground truth RoI', 
-    color='green'
-    )
-ax1.plot(plot2['mask'], label='Predicted RoI', color='purple')
-
-# Noisy enviroment
-ax[1].plot(
-    testing_data[0]['signal'][1, :, 0], 
-    label='Ground truth signal', 
-    )
-
-ax[1].plot(plot1['signal'], label='Predicted Signal')
-
-ax1 = ax[1].twinx()
-
-ax1.plot(
-    testing_data[0]['signal'][1, :, 1], 
-    label='Ground truth RoI', 
-    color='green'
-    )
-ax1.plot(plot1['mask'], label='Predicted RoI', color='purple')
-
-# Two masks enviroment
-ax[2].plot(
-    testing_data[2]['signal'][70, :, 0], 
-    label='Ground truth signal', 
-    )
-
-ax[2].plot(plot3['signal'], label='Predicted Signal')
-
-ax1 = ax[2].twinx()
-
-ax1.plot(
-    testing_data[2]['signal'][70, :, 1], 
-    label='Ground truth RoI', 
-    color='green'
-    )
-ax1.plot(plot1['mask'], label='Predicted RoI', color='purple')
+# plot1 = pd.read_csv(f'{RESULTS_PATH}{model}0/{model}0-prediction_1.csv', names=['signal', 'mask'])
+# plot2 = pd.read_csv(f'{RESULTS_PATH}{model}1/{model}1-prediction_5.csv', names=['signal', 'mask'])
+# plot3 = pd.read_csv(f'{RESULTS_PATH}{model}2/{model}2-prediction_70.csv', names=['signal', 'mask'])
 
 
+# fig, ax = plt.subplots(3, 1, sharex=True)
 
-# ax.set_xticklabels(labels,rotation=0, fontsize=fs)
+# # High SNR
+# ax[0].plot(
+#     testing_data[1]['signal'][5, :, 0], 
+#     label='Ground truth signal', 
+#     )
 
-ax[2].set_xlabel('Time steps')
+# ax[0].plot(plot2['signal'], label='Predicted Signal')
 
-fig.text(0.04, 0.5, 'fECG normalized', va='center', rotation='vertical')
-# ax[0].set_ylabel('fECG normalized')
-# ax1[0].set_ylabel('RoI signal')
+# ax1 = ax[0].twinx()
+
+# ax1.plot(
+#     testing_data[1]['signal'][5, :, 1], 
+#     label='Ground truth RoI', 
+#     color='green'
+#     )
+# ax1.plot(plot2['mask'], label='Predicted RoI', color='purple')
+
+# # Noisy enviroment
+# ax[1].plot(
+#     testing_data[0]['signal'][1, :, 0], 
+#     label='Ground truth signal', 
+#     )
+
+# ax[1].plot(plot1['signal'], label='Predicted Signal')
+
+# ax1 = ax[1].twinx()
+
+# ax1.plot(
+#     testing_data[0]['signal'][1, :, 1], 
+#     label='Ground truth RoI', 
+#     color='green'
+#     )
+# ax1.plot(plot1['mask'], label='Predicted RoI', color='purple')
+
+# # Two masks enviroment
+# ax[2].plot(
+#     testing_data[2]['signal'][70, :, 0], 
+#     label='Ground truth signal', 
+#     )
+
+# ax[2].plot(plot3['signal'], label='Predicted Signal')
+
+# ax1 = ax[2].twinx()
+
+# ax1.plot(
+#     testing_data[2]['signal'][70, :, 1], 
+#     label='Ground truth RoI', 
+#     color='green'
+#     )
+# ax1.plot(plot1['mask'], label='Predicted RoI', color='purple')
 
 
 
-# Shrink current axis's height by 10% on the bottom
-box = ax[2].get_position()
-ax[2].set_position([box.x0, box.y0 + box.height * 0.1,
-                box.width, box.height * 0.9])
+# # ax.set_xticklabels(labels,rotation=0, fontsize=fs)
 
-# Put a legend below current axis
-ax[2].legend(loc='upper center', bbox_to_anchor=(0.1, -0.15),
-        fancybox=True, shadow=True, ncol=2)
+# ax[2].set_xlabel('Time steps')
 
-ax1.legend(loc='upper center', bbox_to_anchor=(0.9, -0.15),
-        fancybox=True, shadow=True, ncol=2)
+# fig.text(0.04, 0.5, 'fECG normalized', va='center', rotation='vertical')
+# # ax[0].set_ylabel('fECG normalized')
+# # ax1[0].set_ylabel('RoI signal')
 
 
 
-ax[0].grid()
-ax[1].grid()
-ax[2].grid()
+# # Shrink current axis's height by 10% on the bottom
+# box = ax[2].get_position()
+# ax[2].set_position([box.x0, box.y0 + box.height * 0.1,
+#                 box.width, box.height * 0.9])
 
-#%%
+# # Put a legend below current axis
+# ax[2].legend(loc='upper center', bbox_to_anchor=(0.1, -0.15),
+#         fancybox=True, shadow=True, ncol=2)
 
-import pandas 
-import matplotlib.pyplot as plt
+# ax1.legend(loc='upper center', bbox_to_anchor=(0.9, -0.15),
+#         fancybox=True, shadow=True, ncol=2)
 
-data = pd.read_csv('/home/julia/Documents/fECG_research/research_dev/autoencoder_with_mask/results/060324-3CH-MOD2-LR_0.0001-W_MASK_0.3-W_SIG_0.1-LEFT_2/060324-3CH-MOD2-LR_0.0001-W_MASK_0.3-W_SIG_0.1-LEFT_2-training_history.csv')
 
-plt.plot(data['loss'])
-plt.plot(data['val_loss'])
+
+# ax[0].grid()
+# ax[1].grid()
+# ax[2].grid()
+
+# #%%
+
+# import pandas 
+# import matplotlib.pyplot as plt
+
+# data = pd.read_csv('/home/julia/Documents/fECG_research/research_dev/autoencoder_with_mask/results/060324-3CH-MOD2-LR_0.0001-W_MASK_0.3-W_SIG_0.1-LEFT_2/060324-3CH-MOD2-LR_0.0001-W_MASK_0.3-W_SIG_0.1-LEFT_2-training_history.csv')
+
+# plt.plot(data['loss'])
+# plt.plot(data['val_loss'])
 # %%

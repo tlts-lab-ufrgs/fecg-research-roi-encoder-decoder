@@ -14,8 +14,6 @@ from models.ae_proposed import ProposedAE
 
 # Range in learning rate
 UPPER_LIM_LR = 0.0001
-LOWER_LIMIT_LR = 0.00098
-LR_STEP = 0.00
 
 # batch size
 BATCH_SIZE=4
@@ -89,15 +87,15 @@ model = tf.keras.models.load_model(
 
 # %%
 predict = model.predict(training_data[0])
-# %%
-import matplotlib.pyplot as plt
+# # %%
+# import matplotlib.pyplot as plt
 
-for index in range(2540, 2550):
+# for index in range(2540, 2550):
     
-    fig, ax = plt.subplots()
-    # index = 2140
-    ax.plot(predict[index])
+#     fig, ax = plt.subplots()
+#     # index = 2140
+#     ax.plot(predict[index])
 
-    ax.plot(training_data[1][index])# %%
+#     ax.plot(training_data[1][index])# %%
 
 # %%

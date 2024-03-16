@@ -12,15 +12,16 @@ import glob
 import numpy as np
 import matplotlib.pyplot as plt
 import tensorflow as tf
+from dead_files import mask_as_input
 # import tensorflow.keras.layers as Layers, Input
 
-from models.linknet import linknet
-from models.ae_proposed_tests_file import proposed_ae
+from dead_files.linknet import linknet
+from dead_files.ae_proposed_tests_file import proposed_ae
 
 from losses.mse_with_mask import mse_with_mask
 from utils.lr_scheduler import callback
 from utils.training_patience import callback as patience_callback
-from data_load import mask_as_input, signal_and_mask_as_output
+from dead_files import signal_and_mask_as_output
 
 from metrics.mse_mask import mse_mask
 from metrics.mse_signal import mse_signal
