@@ -1,44 +1,17 @@
-# Autoencoder coupled with a region mask
+# An end-to-end RoI-based encoder-decoder for fetal ECG recovery and QRS complex detection
 
-## Relatório de Andamento
+When using this model, please cite the original paper: ``
 
-### Dia 24 de janeiro de 2024
+## Code
 
-* Objetivo:
-
-1. Verificar se a rede consegue realizar um noise removal dos dados de entrada
-2. Testar a regressão dos mesmos dados de entrada
-3. Testar utilizando somente MSE e MAE pra avaliação inicial, registrar os resultados.
-
-* Testes realizados:
-
-0. Teste #1:
-batch_size=64
-loss=mse
-metric=mse
-out=mask+fecg
-
-Mesmo utilizando o scheduler, quando usamos mais arquivos a loss aumenta e não vê-se aprendizado ao longo do tempo (mesmo fazendo a troca de LR_INIT). A loss caiu de 0.49 para 0.46 ao longo de 20 épocas de treinamento.
-
-1. Teste #2
-batch_size=32
-loss=mse
-metric=mse
-out=mask+fecg
-
-2. Máscara como entrada:
-batch_size=32
-loss=mse
-metric=mse
-out=fecg
-
-3. Máscara como entrada, loss modificada:
-batch_size=32
-loss=custom
-metric=mse
-out=fecg
+- The proposed model is available at **models/ae_proposed**. To generate its weights, please run **main.py** after changing the local variables.
+- To run a grid search over the hyperparameters, uncomment the loop segment in **loop_hyper.py** change the local variables and run the code. 
+- In **data_load** dir you can find the subfunction that re-organizes the dataset data to the model understandable format
+- To run evaluation on NI-FECG and NInFEA datasets, go to **model_eval/** dir
+- Also, in **model_eval/** dir you can find MAE / MSE evalluation and peak detection evaluation - with the proposed method and Pan and Tomps Method. 
 
 
-* Resultados obtidos: 
+Don't forget to change the local variables! The main files are developed to understand ADFECG data format. 
 
-* Ações a serem realizadas:
+
+Any questions, you can send me an email to: juliacremus@gmail.com or julia.remus@inf.ufrgs.br
