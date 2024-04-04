@@ -2,6 +2,9 @@
 
 When using this model, please cite the original paper: ``
 
+## Removed ADFECG [17] r10 segments
+Considering segment size of 512, the segment closed intervals are: [40-52], [56,60], 177, [179,190], [197,207], [311,320], [335, 341], 343, 365, 371, [393,412].
+
 ## Code
 
 - The proposed model is available at **models/ae_proposed**. To generate its weights, please run **main.py** after changing the local variables.
