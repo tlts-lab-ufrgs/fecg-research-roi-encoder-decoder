@@ -9,6 +9,7 @@ When using this model, please cite the original paper: ``
 - In **data_load** dir you can find the subfunction that re-organizes the dataset data to the model understandable format
 - To run evaluation on NI-FECG and NInFEA datasets, go to **model_eval/** dir
 - Also, in **model_eval/** dir you can find MAE / MSE evalluation and peak detection evaluation - with the proposed method and Pan and Tomps Method. 
+- The model weights are available at https://drive.google.com/drive/folders/1vZ9WOS__G-kFC5ivZKqLK6A9MWLHqgIu?usp=sharing
 
 
 Don't forget to change the local variables! The main files are developed to understand ADFECG data format. 
