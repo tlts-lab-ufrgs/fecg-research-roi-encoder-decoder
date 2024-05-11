@@ -14,8 +14,12 @@ Considering segment size of 512, the segment closed intervals are: [40-52], [56,
 - Also, in **model_eval/** dir you can find MAE / MSE evalluation and peak detection evaluation - with the proposed method and Pan and Tomps Method. 
 - The model weights are available at https://drive.google.com/drive/folders/1vZ9WOS__G-kFC5ivZKqLK6A9MWLHqgIu?usp=sharing
 
-
 Don't forget to change the local variables! The main files are developed to understand ADFECG data format. 
 
+
+Update may 11th: we were using tensorflow in a older version, there are some updates to adjust to that.
+
+
+-------
 
 Any questions, you can send me an email to: juliacremus@gmail.com or julia.remus@inf.ufrgs.br

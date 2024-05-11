@@ -21,8 +21,9 @@ BATCH_SIZE=4
 # files 
 TOTAL_FILES = 5
 
-RESULTS_PATH = "/home/julia/Documents/fECG_research/research_dev/autoencoder_with_mask/results/"
-DATA_PATH =  "/home/julia/Documents/fECG_research/datasets/abdominal-and-direct-fetal-ecg-database-1.0.0/"
+RESULTS_PATH = "/home/julia/Documents/research/sprint_1/results/"
+DATA_PATH =  "/home/julia/Documents/research/datasets/abdominal-and-direct-fetal-ecg-database-1.0.0/"
+SAVE_MODEL_PATH = "/home/julia/Documents/research/sprint_1/model_rev0/"
 
 CHANNELS = 3
 LEN_BATCH = 512
@@ -64,7 +65,7 @@ model = ProposedAE(
 history, _, _ = model.fit_and_evaluate()
 
 #%%
-model.save('/home/julia/Documents/fECG_research/research_dev/autoencoder_with_mask/final_model_3ch/')
+model.save(SAVE_MODEL_PATH)
 
 #%%
 
@@ -76,7 +77,7 @@ from utils.lr_scheduler import callback as lr_scheduler
 #%%
 
 model = tf.keras.models.load_model(
-    '/home/julia/Documents/fECG_research/research_dev/autoencoder_with_mask/final_model_3ch/', 
+    SAVE_MODEL_PATH, 
     custom_objects = {
         'mse_mask': Metric.mse_mask,
         'mse_signal': Metric.mse_signal, 

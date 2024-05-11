@@ -41,6 +41,10 @@ def add_baseline_wandering(x, num_components=5, amplitude=1, fs=1000):
     
     return x_with_baseline
 
+class ConcatOutput(tf.keras.Layer):
+    def call(self, signal_decoded, mask_decoded):
+        return tf.concat([signal_decoded, mask_decoded], 2)
+
 class CustomDataAugmentation(tf.keras.layers.Layer):
     def __init__(self, num_components=15, amplitude=1, fs=1000, **kwargs):
         super(CustomDataAugmentation, self).__init__(**kwargs)
@@ -227,7 +231,7 @@ class ProposedAE:
         x = Add()([x1, x2])
         return x
         
-    def decoder_block(self, inputs, skip_connection, filters_num, kernel_size=3, stride=2, output_padding=0, activation="relu"):
+    def decoder_block(self, inputs, skip_connection, filters_num, kernel_size=3, stride=2, output_padding=1, activation="relu"):
 
         print('Decoder input', np.shape(inputs))
         
@@ -237,7 +241,7 @@ class ProposedAE:
             kernel_size=kernel_size, 
             activation=activation, 
             strides=stride, 
-            output_padding=output_padding
+            #output_padding=output_padding
         )(x)
         x = self.conv_block(x, num_filters=filters_num, kernel_size=1, padding='valid')
         
@@ -256,7 +260,7 @@ class ProposedAE:
             kernel_size=4, 
             activation="relu", 
             strides=2,
-            output_padding=0
+            #output_padding=1
         )(x)
         x = self.conv_block(x, num_filters=512, kernel_size=1, padding='valid', activation='relu')
         
@@ -272,7 +276,7 @@ class ProposedAE:
             kernel_size=4, 
             activation="relu", 
             strides=2,
-            output_padding=0
+            #output_padding=1
         )(x)
         x = Dropout(0.2)(x)
         x = self.conv_block(x, num_filters=16, kernel_size=1, padding='valid', activation='relu')
@@ -299,7 +303,7 @@ class ProposedAE:
             kernel_size=4, 
             activation="relu", 
             strides=2,
-            output_padding=0
+            #output_padding=0
         )(x)
         x = self.conv_block(x, num_filters=64, kernel_size=1, padding='valid', activation='relu')
         
@@ -344,7 +348,10 @@ class ProposedAE:
         signal_decoded = self.signal_decoder_block(bottleneck[:, :, 0:256], encoder_block1, encoder_block2, encoder_block3, encoder_block4)
 
         # Output
-        outputs = tf.concat([signal_decoded, mask_decoded], 2)
+
+        outputs = ConcatOutput()(signal_decoded, mask_decoded)
+
+        # outputs = tf.concat([signal_decoded, mask_decoded], 2)
         
 
         print('Output form', np.shape(outputs))
