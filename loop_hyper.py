@@ -15,12 +15,12 @@ from models.ae_proposed import ProposedAE
 
 # CHANGEBLE VARIABLES ---------------------------------------------------------------------------------------------- 
 TOTAL_FILES = 5
-CHANNELS = 4
+CHANNELS = 3
 RESAMPLE_FREQ_RATIO = 1
 HAVE_DIRECT_FECG = True
 
-RESULTS_PATH = "/home/julia/Documents/fECG_research/research_dev/autoencoder_with_mask/results/"
-DATA_PATH =  "/home/julia/Documents/fECG_research/datasets/abdominal-and-direct-fetal-ecg-database-1.0.0/"
+RESULTS_PATH = "/home/julia/Documents/research/sprint_1/results/ablation_extended/"
+DATA_PATH =  "/home/julia/Documents/research/datasets/abdominal-and-direct-fetal-ecg-database-1.0.0/"
 # -------------------------------------------------------------------------------------------------------------------
 
 #%% Model constants
@@ -59,7 +59,7 @@ w_combined = 1 - w_mask - w_signal
 
 for i in range(0, TOTAL_FILES, 1):
     
-    prefix_id = f'080324-4CH-1000-LR_{UPPER_LIM_LR}-W_MASK_{w_mask}-W_SIG_{w_signal}-LEFT_{i}'
+    prefix_id = f'140524-sin_act-upsampling-LR_{UPPER_LIM_LR}-W_MASK_{w_mask}-W_SIG_{w_signal}-LEFT_{i}'
     
     print(prefix_id)
     

@@ -1,5 +1,4 @@
 #%%
-#%%
 
 import numpy as np
 import tensorflow as tf
@@ -236,21 +235,16 @@ class ProposedAE:
 
         print('Decoder input', np.shape(inputs))
         
-        # x = self.conv_block(inputs, num_filters=filters_num, kernel_size=2, padding='valid')
-        # x = Conv1DTranspose(
-        #     filters_num, 
-        #     kernel_size=kernel_size, 
-        #     activation=activation, 
-        #     strides=stride, 
-        #     #output_padding=output_padding
-        # )(x)
-        x = UpSampling1D(2)(inputs)
-        
+        x = self.conv_block(inputs, num_filters=filters_num, kernel_size=2, padding='valid')
+        x = Conv1DTranspose(
+            filters_num, 
+            kernel_size=kernel_size, 
+            activation=activation, 
+            strides=stride, 
+            #output_padding=output_padding
+        )(x)
         x = self.conv_block(x, num_filters=filters_num, kernel_size=1, padding='valid')
-
-
-
-
+        
         x = Add()([x, skip_connection])
         
         print('x signals', np.shape(x))
@@ -260,39 +254,38 @@ class ProposedAE:
 
     def mask_decoder_block(self, x, encoder_block1, encoder_block2, encoder_block3, encoder_block4):
         
-        # x = self.conv_block(x, num_filters=512, kernel_size=2, padding='valid', activation=tf.math.sin)
-        # x = Conv1DTranspose(
-        #     512, 
-        #     kernel_size=4, 
-        #     activation="relu", 
-        #     strides=2,
-        #     #output_padding=1
-        # )(x)
-        x = UpSampling1D(2)(x)
-        # x = self.conv_block(x, num_filters=512, kernel_size=1, padding='valid', activation=tf.math.sin)
-        decoder = self.decoder_block(x, encoder_block3, 256, kernel_size=2, activation=tf.math.sin)
-        decoder = self.decoder_block(decoder, encoder_block2, 128, kernel_size=4, activation=tf.math.sin)
-        decoder = self.decoder_block(decoder, encoder_block1, 64, kernel_size=4, activation=tf.math.sin)
+        x = self.conv_block(x, num_filters=512, kernel_size=2, padding='valid', activation='relu')
+        x = Conv1DTranspose(
+            512, 
+            kernel_size=4, 
+            activation="relu", 
+            strides=2,
+            #output_padding=1
+        )(x)
+        x = self.conv_block(x, num_filters=512, kernel_size=1, padding='valid', activation='relu')
+        
+        decoder = self.decoder_block(x, encoder_block3, 256, kernel_size=4, activation='relu')
+        decoder = self.decoder_block(decoder, encoder_block2, 128, kernel_size=4, activation='relu')
+        decoder = self.decoder_block(decoder, encoder_block1, 64, kernel_size=4, activation='relu')
         
 
         # Last upsampling
-        # x = self.conv_block(decoder, num_filters=512, kernel_size=2, padding='valid', activation=tf.math.sin)
-        x = UpSampling1D(2)(decoder)
-        x = Dropout(0.3)(x)
-        # x = Conv1DTranspose(
-        #     512, 
-        #     kernel_size=4, 
-        #     activation="relu", 
-        #     strides=2,
-        #     #output_padding=1
-        # )(x)
-        # x = self.conv_block(x, num_filters=16, kernel_size=1, padding='valid', activation=tf.math.sin)
+        x = self.conv_block(decoder, num_filters=512, kernel_size=2, padding='valid', activation='relu')
+        x = Conv1DTranspose(
+            512, 
+            kernel_size=4, 
+            activation="relu", 
+            strides=2,
+            #output_padding=1
+        )(x)
+        x = Dropout(0.2)(x)
+        x = self.conv_block(x, num_filters=16, kernel_size=1, padding='valid', activation='relu')
+        
+        print(np.shape(x))
         
         x = self.conv_block(x, num_filters=1, kernel_size=1, stride=1)
                     
-        decode_mask = Activation(tf.math.sin)(x)
-
-        print('Decode mask', np.shape(decode_mask))
+        decode_mask = Activation('relu')(x)
             
         return decode_mask
 
@@ -303,23 +296,22 @@ class ProposedAE:
         decoder = self.decoder_block(decoder, encoder_block2[:, :, 0:64], 64, kernel_size=4)
         decoder = self.decoder_block(decoder, encoder_block1[:, :, 0:32], 32, kernel_size=4)
 
-        #x = self.conv_block(decoder, num_filters=256, kernel_size=2, padding='valid', activation=tf.math.sin)
+        x = self.conv_block(decoder, num_filters=512, kernel_size=2, padding='valid', activation='relu')
         
-        # x = Conv1DTranspose(
-        #     512, 
-        #     kernel_size=4, 
-        #     activation="relu", 
-        #     strides=2,
-        #     #output_padding=0
-        # )(x)
-        #x = UpSampling1D(2)(x)
-        #x = self.conv_block(x, num_filters=16, kernel_size=1, padding='valid', activation=tf.math.sin)
-        x = UpSampling1D(2)(decoder)
+        x = Conv1DTranspose(
+            512, 
+            kernel_size=4, 
+            activation="relu", 
+            strides=2,
+            #output_padding=0
+        )(x)
+        x = self.conv_block(x, num_filters=64, kernel_size=1, padding='valid', activation='relu')
+        
+        print(np.shape(x))
+        
         x = self.conv_block(x, num_filters=1, kernel_size=1, stride=1)
                     
-        decode_signal = Activation(tf.math.sin)(x)
-
-        print('Decode signal ', np.shape(x))
+        decode_signal = Activation('relu')(x)
             
         return decode_signal
 
@@ -407,5 +399,5 @@ class ProposedAE:
     
     def save(self, path_dir):
         
-        self.model.save(path_dir, save_format='tf')
+        self.model.save(path_dir)
         

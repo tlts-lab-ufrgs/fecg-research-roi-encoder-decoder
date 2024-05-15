@@ -7,7 +7,7 @@ def scheduler(epoch, lr):
   if epoch < 10:
     return lr
   else:
-    return lr * tf.math.exp(-0.1)
+    return np.float64(lr * np.exp(-0.1))
 
 def decayed_learning_rate(step, lr):
   
@@ -17,6 +17,6 @@ def decayed_learning_rate(step, lr):
   cosine_decay = 0.5 * (1 + np.cos(np.pi * step / 30))
   decayed = (1 - alpha) * cosine_decay + alpha
   
-  return initial_decay_lr * decayed
+  return np.float32(initial_decay_lr * decayed)
 
 callback = tf.keras.callbacks.LearningRateScheduler(scheduler)

@@ -13,7 +13,7 @@ from models.ae_proposed import ProposedAE
 #%% constants
 
 # Range in learning rate
-UPPER_LIM_LR = 0.0001
+UPPER_LIM_LR = 0.001
 
 # batch size
 BATCH_SIZE=4
@@ -23,7 +23,7 @@ TOTAL_FILES = 5
 
 RESULTS_PATH = "/home/julia/Documents/research/sprint_1/results/"
 DATA_PATH =  "/home/julia/Documents/research/datasets/abdominal-and-direct-fetal-ecg-database-1.0.0/"
-SAVE_MODEL_PATH = "/home/julia/Documents/research/sprint_1/model_rev0/"
+SAVE_MODEL_PATH = "/home/julia/Documents/research/sprint_1/model_rev2/"
 
 CHANNELS = 3
 LEN_BATCH = 512
@@ -62,6 +62,8 @@ model = ProposedAE(
     epochs=150
 )
 
+#%%
+
 history, _, _ = model.fit_and_evaluate()
 
 #%%
@@ -77,7 +79,7 @@ from utils.lr_scheduler import callback as lr_scheduler
 #%%
 
 model = tf.keras.models.load_model(
-    SAVE_MODEL_PATH, 
+    '/home/julia/Documents/research/sprint_1/model_rev1/idontcare.h5', 
     custom_objects = {
         'mse_mask': Metric.mse_mask,
         'mse_signal': Metric.mse_signal, 
