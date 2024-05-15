@@ -20,15 +20,17 @@ from utils.mean_confidence_interval import mean_confidence_interval
 #%% constants 
 
 
-RESULTS_PATH = "/home/julia/Documents/fECG_research/research_dev/autoencoder_with_mask/results/"
-DATA_PATH =  "/home/julia/Documents/fECG_research/datasets/abdominal-and-direct-fetal-ecg-database-1.0.0/"
+RESULTS_PATH = "/home/julia/Documents/research/sprint_1/results/ablation_extended/"
+DATA_PATH =  "/home/julia/Documents/research/datasets/abdominal-and-direct-fetal-ecg-database-1.0.0/"
+
+ABLATION_TEST = '140524-sin_act-upsampling'
 
 CHANNELS = 3
-LEN_BATCH = 256
+LEN_BATCH = 512
 QRS_DURATION = 0.1  # seconds, max
 QRS_DURATION_STEP = 25
 
-TEST_FILE = 4
+TEST_FILE = 0
 
 #%%
 
@@ -75,7 +77,7 @@ for i in range(5):
 
 
 #%% concat results of the same dir
-results_dir = glob.glob(RESULTS_PATH + '060324-3CH-500-LR_0.0001*')
+results_dir = glob.glob(RESULTS_PATH + ABLATION_TEST + '*')
 results_rows = []
 
 for i in results_dir:

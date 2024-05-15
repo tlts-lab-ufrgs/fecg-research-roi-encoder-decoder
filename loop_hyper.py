@@ -9,7 +9,7 @@ from numba import cuda
 import matplotlib.pyplot as plt
 
 from data_load.load_leave_one_out import data_loader
-from models.ae_proposed import ProposedAE
+from models.ae_proposed_rev0 import ProposedAE
 
 #%% To run other experiments please change this below
 

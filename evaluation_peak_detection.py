@@ -45,7 +45,7 @@ def mse_function(y_true, y_pred):
 
 #%% constants 
 
-FILES_TO_CALCULATE = '060324-3CH-MOD2-LR_0.0001'
+FILES_TO_CALCULATE = '140524-sin_act-upsampling'
 # results/010324-3CH-VAL_LOSS-MOD_DA6-LR_0.0001-W_MASK_0.3-W_SIG_0.1-LEFT_2
 
 # [w_mask, w_signal]
@@ -58,8 +58,8 @@ SAMPLING_FREQ = 1000
 CHANNELS = 3
 RESAMPLING_FREQUENCY_RATIO = int(1000 / SAMPLING_FREQ)
 
-RESULTS_PATH = "/home/julia/Documents/fECG_research/research_dev/autoencoder_with_mask/results/"
-DATA_PATH =  "/home/julia/Documents/fECG_research/datasets/abdominal-and-direct-fetal-ecg-database-1.0.0/"
+RESULTS_PATH = "/home/julia/Documents/research/sprint_1/results/ablation_extended/"
+DATA_PATH =  "/home/julia/Documents/research/datasets/abdominal-and-direct-fetal-ecg-database-1.0.0/"
 
 NUMBER_OF_FILES = 5
 

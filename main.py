@@ -4,11 +4,10 @@ import os
 import numpy as np
 import pandas as pd
 import tensorflow as tf
-from keras import backend as K
 from numba import cuda
 
 from data_load.load_leave_one_out import data_loader
-from models.ae_proposed import ProposedAE
+from models.ae_proposed_rev0 import ProposedAE
 
 #%% constants
 
@@ -79,7 +78,7 @@ from utils.lr_scheduler import callback as lr_scheduler
 #%%
 
 model = tf.keras.models.load_model(
-    '/home/julia/Documents/research/sprint_1/model_rev1/idontcare.h5', 
+    '/home/julia/Documents/research/sprint_1/model_rev0', 
     custom_objects = {
         'mse_mask': Metric.mse_mask,
         'mse_signal': Metric.mse_signal, 
@@ -87,6 +86,17 @@ model = tf.keras.models.load_model(
         'lr': lr_scheduler
     }
 )
+
+# model = tf.keras.layers.TFSMLayer(
+    # '/home/julia/Documents/research/sprint_1/model_rev0', 
+    # call_endpoint='serving_default'
+    # # custom_objects = {
+    # #     'mse_mask': Metric.mse_mask,
+    # #     'mse_signal': Metric.mse_signal, 
+    # #     'loss': Loss.loss, 
+    # #     'lr': lr_scheduler
+    # # }
+# )
 
 # %%
 predict = model.predict(training_data[0])
