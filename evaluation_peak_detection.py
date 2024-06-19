@@ -45,7 +45,7 @@ def mse_function(y_true, y_pred):
 
 #%% constants 
 
-FILES_TO_CALCULATE = '140524-sin_act-upsampling'
+FILES_TO_CALCULATE = '240524-sin_act-wt_droout_in_mask-upsampling-LR_0.0001'
 # results/010324-3CH-VAL_LOSS-MOD_DA6-LR_0.0001-W_MASK_0.3-W_SIG_0.1-LEFT_2
 
 # [w_mask, w_signal]
@@ -487,7 +487,7 @@ for j in range(NUMBER_OF_FILES):
     )
     
     precision = true_positive / (
-        true_positive + (false_positive)
+         true_positive + (false_positive)
     )
     
     f1_pt = true_positive_pt / (
@@ -499,7 +499,7 @@ for j in range(NUMBER_OF_FILES):
     )
     
     precision_pt = true_positive_pt / (
-     true_positive_pt + (false_positive_pt)
+        true_positive_pt + (false_positive_pt)
     )
     
     acc = true_positive / (

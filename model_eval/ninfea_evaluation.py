@@ -18,7 +18,7 @@ from sklearn.decomposition import PCA
 from sklearn.decomposition import FastICA
 from models.ae_proposed import Metric, Loss
 
-from utils.gaussian_function import gaussian
+from utils.masks_function import gaussian
 from utils.lr_scheduler import callback as lr_scheduler
 from utils.mean_confidence_interval import mean_confidence_interval
 

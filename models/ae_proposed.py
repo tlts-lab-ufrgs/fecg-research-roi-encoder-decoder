@@ -20,7 +20,7 @@ from tensorflow.keras.layers import (
     Dropout
 )
 
-from utils.gaussian_function import gaussian
+from utils.masks_function import gaussian
 
 
 def add_baseline_wandering(x, num_components=5, amplitude=1, fs=1000):

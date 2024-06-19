@@ -71,7 +71,7 @@ model.save(SAVE_MODEL_PATH)
 #%%
 
 from models.ae_proposed import Metric, Loss
-from utils.gaussian_function import gaussian
+from utils.masks_function import gaussian
 from data_load.load_leave_one_out import data_resizer
 from utils.lr_scheduler import callback as lr_scheduler
 

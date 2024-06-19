@@ -7,9 +7,10 @@ import tensorflow as tf
 from keras import backend as K
 from numba import cuda
 import matplotlib.pyplot as plt
+from datetime import datetime
 
 from data_load.load_leave_one_out import data_loader
-from models.ae_proposed_rev0 import ProposedAE
+from models.ae_proposed import ProposedAE
 
 #%% To run other experiments please change this below
 
@@ -37,6 +38,11 @@ w_mask = 0.3
 w_signal = 0.1
 w_combined = 1 - w_mask - w_signal
 
+type_of_mask = 'triangle'
+decoder_type = 'upsampling'
+
+today = datetime.today().strftime('%Y-%m-%d')
+
 #%% If you want to loop in weight parameters
 
 
@@ -59,7 +65,7 @@ w_combined = 1 - w_mask - w_signal
 
 for i in range(0, TOTAL_FILES, 1):
     
-    prefix_id = f'140524-sin_act-upsampling-LR_{UPPER_LIM_LR}-W_MASK_{w_mask}-W_SIG_{w_signal}-LEFT_{i}'
+    prefix_id = f'{today}-MASK_{type_of_mask}-DECODER_BY_{decoder_type}-LR_{UPPER_LIM_LR}-W_MASK_{w_mask}-W_SIG_{w_signal}-LEFT_{i}'
     
     print(prefix_id)
     
@@ -72,7 +78,8 @@ for i in range(0, TOTAL_FILES, 1):
             type_of_file='edf', 
             resample_fs=RESAMPLE_FREQ_RATIO, 
             channels=CHANNELS, 
-            fecg_on_gt=HAVE_DIRECT_FECG
+            fecg_on_gt=HAVE_DIRECT_FECG, 
+            type_of_mask = type_of_mask
     )
     
     model = ProposedAE(

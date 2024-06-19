@@ -23,7 +23,7 @@ from utils.mean_confidence_interval import mean_confidence_interval
 RESULTS_PATH = "/home/julia/Documents/research/sprint_1/results/ablation_extended/"
 DATA_PATH =  "/home/julia/Documents/research/datasets/abdominal-and-direct-fetal-ecg-database-1.0.0/"
 
-ABLATION_TEST = '140524-sin_act-upsampling'
+ABLATION_TEST = '2024-06-19-MASK_triangle-DECODER_BY_upsampling'
 
 CHANNELS = 3
 LEN_BATCH = 512
@@ -54,7 +54,8 @@ for i in range(5):
                 QRS_DURATION, 
                 QRS_DURATION_STEP,
                 leave_for_testing=i,
-                type_of_file='edf'
+                type_of_file='edf', 
+                type_of_mask="triangle"
             )
 
     fecg_testing_data = this_testing_data[1]

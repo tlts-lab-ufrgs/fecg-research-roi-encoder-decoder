@@ -5,7 +5,7 @@ from scipy.signal import resample
 from sklearn.decomposition import FastICA
 from sklearn.decomposition import PCA
 
-from utils.gaussian_function import gaussian
+from utils.masks_function import gaussian, triangle
 
 
 # Segments index (considering 512 length) to remove from r10.edf file in ADFECG dataset
@@ -101,7 +101,8 @@ def data_resizer(
     type_of_file='edf', 
     resample_fs=1, 
     channels = 3, 
-    fecg_on_gt = True
+    fecg_on_gt = True, 
+    type_of_mask = 'gaussian'
 ):
     
     """
@@ -150,6 +151,8 @@ def data_resizer(
     
             
         # Generates masks
+
+
         mask = np.zeros(shape=int(np.shape(raw_data)[-1] / resample_fs))
 
         for step in time_annotations:
@@ -160,8 +163,12 @@ def data_resizer(
                 (file_info.times[::resample_fs] > (step - qrs_duration)) &
                 (file_info.times[::resample_fs] < (step + qrs_duration))
             )[0]
+
+            if type_of_mask == 'gaussian':
+                mask[qrs_region] = gaussian(qrs_region, center_index / resample_fs, qrs_len / 2)
             
-            mask[qrs_region] = gaussian(qrs_region, center_index / resample_fs, qrs_len / 2)
+            if type_of_mask == 'triangle':
+                mask[qrs_region] = triangle(qrs_region, center_index / resample_fs, qrs_len / 2)
             
         # Number of channels:
         if channels == 3:    
@@ -265,7 +272,8 @@ def data_loader(
     resample_fs=1,
     dataset = '', 
     channels = 3, 
-    fecg_on_gt = True
+    fecg_on_gt = True, 
+    type_of_mask = 'gaussian'
 ):
     
     """
@@ -305,7 +313,8 @@ def data_loader(
         type_of_file, 
         resample_fs=resample_fs, 
         channels = channels,  
-        fecg_on_gt = fecg_on_gt
+        fecg_on_gt = fecg_on_gt, 
+        type_of_mask = type_of_mask
     )
     
     if whole_dataset_training:
@@ -320,7 +329,8 @@ def data_loader(
             type_of_file, 
             resample_fs=resample_fs,
             channels = channels, 
-            fecg_on_gt = fecg_on_gt
+            fecg_on_gt = fecg_on_gt, 
+            type_of_mask = type_of_mask
         )
     
     
