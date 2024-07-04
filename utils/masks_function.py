@@ -1,5 +1,5 @@
 import numpy as np
-
+from scipy.special import gamma
 
 #%% Gaussian function
 
@@ -24,4 +24,13 @@ def triangle(x, mu, sig):
 
     return mask / np.max(mask)
 
-# %%
+
+def plateau_shaped():
+
+    # this function implements the function defined on https://en.wikipedia.org/wiki/Generalized_normal_distribution
+
+    beta = 8
+
+    # signal = (beta / (np.sqrt(2.0 * np.pi) * sig)) * np.exp(-np.power((x - mu) / sig, 2.0) / 2)
+
+    return 
