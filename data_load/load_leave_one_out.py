@@ -164,6 +164,9 @@ def data_resizer(
                 (file_info.times[::resample_fs] < (step + qrs_duration))
             )[0]
 
+            if type_of_mask == 'none':
+                mask = np.ones(shape=int(np.shape(raw_data)[-1] / resample_fs))
+
             if type_of_mask == 'gaussian':
                 mask[qrs_region] = gaussian(qrs_region, center_index / resample_fs, qrs_len / 2)
             
