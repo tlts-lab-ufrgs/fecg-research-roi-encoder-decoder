@@ -1,5 +1,6 @@
 #%%
 
+import time
 import numpy as np
 import tensorflow as tf
 
@@ -70,8 +71,8 @@ class CustomDataAugmentation(tf.keras.layers.Layer):
             
             channel_to_cutoff = np.random.randint(0, 4)
             
-            begin_of_region = np.random.randint(0, 513 - 10)
-            end_of_region = np.random.randint(begin_of_region + 50, 513)
+            begin_of_region = np.random.randint(0, len_batch - 50)
+            end_of_region = np.random.randint(begin_of_region + 50, len_batch)
             
             # if channel_to_cutoff != -1:
             augmented_inputs[:, begin_of_region:end_of_region + 1, channel_to_cutoff] = np.full(shape=np.shape(augmented_inputs[:, :, channel_to_cutoff]), fill_value = np.mean(augmented_inputs[:, :, channel_to_cutoff]))
@@ -80,20 +81,20 @@ class CustomDataAugmentation(tf.keras.layers.Layer):
             # second cuttoff
             
             channel_to_cutoff = np.random.randint(0, 4)
-            begin_of_region = np.random.randint(0, len_batch - 10)
+            begin_of_region = np.random.randint(0, len_batch - 50)
             end_of_region = np.random.randint(begin_of_region + 50, len_batch)
             augmented_inputs[:, begin_of_region:end_of_region + 1, channel_to_cutoff] = 0 #np.full(shape=np.shape(augmented_inputs[:, :, channel_to_cutoff]), fill_value = np.max(augmented_inputs[:, :, channel_to_cutoff]))
                    
-            # add a start of gaussian at the end of beginning of the file:
-            add_gausian_tail_to_data = np.random.randint(0, 1)
-            if add_gausian_tail_to_data == 1:
-                at_the_end_of_data = np.random.randint(0, 1)
+            # # add a start of gaussian at the end of beginning of the file:
+            # add_gausian_tail_to_data = np.random.randint(0, 1)
+            # if add_gausian_tail_to_data == 1:
+            #     at_the_end_of_data = np.random.randint(0, 1)
                 
                 
-                if at_the_end_of_data == 1:
-                    augmented_inputs[:, [len_batch - 20, len_batch]] += gaussian(np.arange(len_batch - 20, len_batch), np.random.randint(len_batch, 65), 0.1)
-                else:
-                    augmented_inputs[:, [0, 30]] += gaussian(np.arange(0, 30), np.random.randint(0, -32), 0.1)
+            #     if at_the_end_of_data == 1:
+            #         augmented_inputs[:, [len_batch - 20, len_batch]] += gaussian(np.arange(len_batch - 20, len_batch), np.random.randint(len_batch, 65), 0.1)
+            #     else:
+            #         augmented_inputs[:, [0, 30]] += gaussian(np.arange(0, 30), np.random.randint(0, -32), 0.1)
 
                         
             return augmented_inputs
@@ -231,7 +232,12 @@ class ProposedAE:
 
         print('Decoder input', np.shape(inputs))
         
-        x = self.conv_block(inputs, num_filters=filters_num, kernel_size=2, padding='valid')
+        x = self.conv_block(
+            inputs, 
+            num_filters=filters_num, 
+            kernel_size=2, 
+            padding='valid'
+        )
         x = Conv1DTranspose(
             filters_num, 
             kernel_size=kernel_size, 
@@ -239,7 +245,12 @@ class ProposedAE:
             strides=stride, 
             #output_padding=output_padding
         )(x)
-        x = self.conv_block(x, num_filters=filters_num, kernel_size=1, padding='valid')
+        x = self.conv_block(
+            x, 
+            num_filters=filters_num, 
+            kernel_size=1, 
+            padding='valid'
+        )
         
         x = Add()([x, skip_connection])
         
@@ -285,27 +296,31 @@ class ProposedAE:
             
         return decode_mask
 
-    def signal_decoder_block(self, x, encoder_block1, encoder_block2, encoder_block3, encoder_block4):
+    def signal_decoder_block(self, x, encoder_block1, encoder_block2, encoder_block3):
 
-        decoder = self.decoder_block(x, encoder_block4[:, :, 0:256], 256, kernel_size=4)
-        decoder = self.decoder_block(decoder, encoder_block3[:, :, 0:128], 128, kernel_size=4)
-        decoder = self.decoder_block(decoder, encoder_block2[:, :, 0:64], 64, kernel_size=4)
-        decoder = self.decoder_block(decoder, encoder_block1[:, :, 0:32], 32, kernel_size=4)
+        decoder = self.decoder_block(x, encoder_block3, 256, kernel_size=4)
+        decoder = Dropout(0.1)(decoder)
+        decoder = self.decoder_block(decoder, encoder_block2, 128, kernel_size=4)
+        decoder = Dropout(0.1)(decoder)
+        decoder = self.decoder_block(decoder, encoder_block1, 64, kernel_size=4)
 
-        x = self.conv_block(decoder, num_filters=512, kernel_size=2, padding='valid', activation='relu')
-        
+        decoder = Dropout(0.1)(decoder)
+
+        x = self.conv_block(decoder, num_filters=64, kernel_size=2, padding='valid', activation='relu')
+
         x = Conv1DTranspose(
-            512, 
+            64, 
             kernel_size=4, 
             activation="relu", 
             strides=2,
-            #output_padding=0
         )(x)
-        x = self.conv_block(x, num_filters=64, kernel_size=1, padding='valid', activation='relu')
-        
+
         print(np.shape(x))
-        
-        x = self.conv_block(x, num_filters=1, kernel_size=1, stride=1)
+
+        signal_decoded = self.conv_block(x[:, :, 0:32], num_filters=1, kernel_size=1, padding='valid', activation='relu')
+        mask_decoded = self.conv_block(x[:, :, 32::], num_filters=1, kernel_size=1, padding='valid', activation='relu')
+
+        x = tf.concat([signal_decoded, mask_decoded], 2)
                     
         decode_signal = Activation('relu')(x)
             
@@ -335,17 +350,17 @@ class ProposedAE:
         print('Encoder Block 4', np.shape(encoder_block4))
         encoder_block4 = Dropout(0.2)(encoder_block4)
 
-        bottleneck = self.encoder_block(encoder_block4, num_filters=1024)
-        print('Bottle neck', np.shape(bottleneck))
-        bottleneck = Dropout(0.2)(bottleneck)
+        # bottleneck = self.encoder_block(encoder_block4, num_filters=1024)
+        # print('Bottle neck', np.shape(bottleneck))
+        # bottleneck = Dropout(0.2)(bottleneck)
 
     
-        mask_decoded = self.mask_decoder_block(bottleneck[:, :, 256:512], encoder_block1, encoder_block2, encoder_block3, encoder_block4)
-        signal_decoded = self.signal_decoder_block(bottleneck[:, :, 0:256], encoder_block1, encoder_block2, encoder_block3, encoder_block4)
+        # mask_decoded = self.mask_decoder_block(bottleneck[:, :, 256:512], encoder_block1, encoder_block2, encoder_block3, encoder_block4)
+        outputs = self.signal_decoder_block(encoder_block4, encoder_block1, encoder_block2, encoder_block3)
 
         # Output
 
-        outputs = tf.concat([signal_decoded, mask_decoded], 2)
+        # outputs = tf.concat([signal_decoded, mask_decoded], 2)
         
 
         print('Output form', np.shape(outputs))
@@ -387,7 +402,13 @@ class ProposedAE:
         else:
             test = self.model.evaluate(self.testing_data, self.ground_truth_testing)
             
+            start = time.time()
+
             prediction = self.model.predict(self.testing_data)
+
+            end = time.time()
+
+            print(f'Predict duration for {np.shape(self.testing_data)} is {end-start} seconds ')
             
             return history, test, prediction
     

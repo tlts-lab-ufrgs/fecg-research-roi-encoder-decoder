@@ -23,14 +23,27 @@ from utils.mean_confidence_interval import mean_confidence_interval
 RESULTS_PATH = "/home/julia/Documents/research/sprint_1/results/ablation_extended/"
 DATA_PATH =  "/home/julia/Documents/research/datasets/abdominal-and-direct-fetal-ecg-database-1.0.0/"
 
-ABLATION_TEST = '2024-06-19-MASK_triangle-DECODER_BY_upsampling'
+ABLATION_TEST = '2024-07-16-MASK_gaussian-DECODER_BY_convtransp-dropout_decoder-500hz-LR_0.0001'
+
+
+SAMPLING_FREQ = 500
 
 CHANNELS = 3
-LEN_BATCH = 512
+RESAMPLING_FREQUENCY_RATIO = int(1000 / SAMPLING_FREQ)
+
+# All constants are defined based on a 1000Hz fs
+LEN_BATCH = int(512 / RESAMPLING_FREQUENCY_RATIO)
+LIMT_GAUS = int(30 / RESAMPLING_FREQUENCY_RATIO)
 QRS_DURATION = 0.1  # seconds, max
-QRS_DURATION_STEP = 50
+QRS_DURATION_STEP = int(50 / RESAMPLING_FREQUENCY_RATIO)
+MIN_QRS_DISTANCE = int(300 / RESAMPLING_FREQUENCY_RATIO) # fs = 1000Hz
+MASK_MIN_HEIGHT = 0.7
+
+LIMIT = int(300000 / RESAMPLING_FREQUENCY_RATIO)# - LEN_BATCH
 
 TEST_FILE = 0
+
+type_of_mask = 'gaussian'
 
 #%%
 
@@ -53,9 +66,10 @@ for i in range(5):
                 LEN_BATCH, 
                 QRS_DURATION, 
                 QRS_DURATION_STEP,
+                resample_fs=RESAMPLING_FREQUENCY_RATIO,
                 leave_for_testing=i,
                 type_of_file='edf', 
-                type_of_mask="triangle"
+                type_of_mask=type_of_mask
             )
 
     fecg_testing_data = this_testing_data[1]
@@ -134,7 +148,7 @@ for i in results_dir:
         # if prediction_index in [int(i / 512) for i in false_positive] and test_file == 0:
            
         if prediction_index in [
-            1,2,3,4,5,6,7,8,9,10,11,12,13
+            1,2,3,4,5,6,12,13,14,15,20,21,22,23 
         ]: 
             fig, ax = plt.subplots()
             
@@ -243,108 +257,4 @@ print(mean_confidence_interval(
 print(mean_confidence_interval(
     metrics_dataframe['r2_combined'].values, 'R2 RoI'
 ))
-# %%
-
-
-# #%%
-
-# model = '060324-3CH-MOD2-LR_0.0001-W_MASK_0.3-W_SIG_0.1-LEFT_'
-
-# plot1 = pd.read_csv(f'{RESULTS_PATH}{model}0/{model}0-prediction_1.csv', names=['signal', 'mask'])
-# plot2 = pd.read_csv(f'{RESULTS_PATH}{model}1/{model}1-prediction_5.csv', names=['signal', 'mask'])
-# plot3 = pd.read_csv(f'{RESULTS_PATH}{model}2/{model}2-prediction_70.csv', names=['signal', 'mask'])
-
-
-# fig, ax = plt.subplots(3, 1, sharex=True)
-
-# # High SNR
-# ax[0].plot(
-#     testing_data[1]['signal'][5, :, 0], 
-#     label='Ground truth signal', 
-#     )
-
-# ax[0].plot(plot2['signal'], label='Predicted Signal')
-
-# ax1 = ax[0].twinx()
-
-# ax1.plot(
-#     testing_data[1]['signal'][5, :, 1], 
-#     label='Ground truth RoI', 
-#     color='green'
-#     )
-# ax1.plot(plot2['mask'], label='Predicted RoI', color='purple')
-
-# # Noisy enviroment
-# ax[1].plot(
-#     testing_data[0]['signal'][1, :, 0], 
-#     label='Ground truth signal', 
-#     )
-
-# ax[1].plot(plot1['signal'], label='Predicted Signal')
-
-# ax1 = ax[1].twinx()
-
-# ax1.plot(
-#     testing_data[0]['signal'][1, :, 1], 
-#     label='Ground truth RoI', 
-#     color='green'
-#     )
-# ax1.plot(plot1['mask'], label='Predicted RoI', color='purple')
-
-# # Two masks enviroment
-# ax[2].plot(
-#     testing_data[2]['signal'][70, :, 0], 
-#     label='Ground truth signal', 
-#     )
-
-# ax[2].plot(plot3['signal'], label='Predicted Signal')
-
-# ax1 = ax[2].twinx()
-
-# ax1.plot(
-#     testing_data[2]['signal'][70, :, 1], 
-#     label='Ground truth RoI', 
-#     color='green'
-#     )
-# ax1.plot(plot1['mask'], label='Predicted RoI', color='purple')
-
-
-
-# # ax.set_xticklabels(labels,rotation=0, fontsize=fs)
-
-# ax[2].set_xlabel('Time steps')
-
-# fig.text(0.04, 0.5, 'fECG normalized', va='center', rotation='vertical')
-# # ax[0].set_ylabel('fECG normalized')
-# # ax1[0].set_ylabel('RoI signal')
-
-
-
-# # Shrink current axis's height by 10% on the bottom
-# box = ax[2].get_position()
-# ax[2].set_position([box.x0, box.y0 + box.height * 0.1,
-#                 box.width, box.height * 0.9])
-
-# # Put a legend below current axis
-# ax[2].legend(loc='upper center', bbox_to_anchor=(0.1, -0.15),
-#         fancybox=True, shadow=True, ncol=2)
-
-# ax1.legend(loc='upper center', bbox_to_anchor=(0.9, -0.15),
-#         fancybox=True, shadow=True, ncol=2)
-
-
-
-# ax[0].grid()
-# ax[1].grid()
-# ax[2].grid()
-
-# #%%
-
-# import pandas 
-# import matplotlib.pyplot as plt
-
-# data = pd.read_csv('/home/julia/Documents/fECG_research/research_dev/autoencoder_with_mask/results/060324-3CH-MOD2-LR_0.0001-W_MASK_0.3-W_SIG_0.1-LEFT_2/060324-3CH-MOD2-LR_0.0001-W_MASK_0.3-W_SIG_0.1-LEFT_2-training_history.csv')
-
-# plt.plot(data['loss'])
-# plt.plot(data['val_loss'])
 # %%

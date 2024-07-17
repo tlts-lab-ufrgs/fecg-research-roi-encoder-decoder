@@ -17,7 +17,7 @@ from models.ae_proposed import ProposedAE
 # CHANGEBLE VARIABLES ---------------------------------------------------------------------------------------------- 
 TOTAL_FILES = 5
 CHANNELS = 3
-RESAMPLE_FREQ_RATIO = 1
+RESAMPLE_FREQ_RATIO = 2
 HAVE_DIRECT_FECG = True
 
 RESULTS_PATH = "/home/julia/Documents/research/sprint_1/results/ablation_extended/"
@@ -38,8 +38,9 @@ w_mask = 0.3
 w_signal = 0.1
 w_combined = 1 - w_mask - w_signal
 
-type_of_mask = 'triangle'
-decoder_type = 'upsampling'
+type_of_mask = 'gaussian'
+decoder_type = 'convtransp'
+
 
 today = datetime.today().strftime('%Y-%m-%d')
 
@@ -65,7 +66,7 @@ today = datetime.today().strftime('%Y-%m-%d')
 
 for i in range(0, TOTAL_FILES, 1):
     
-    prefix_id = f'{today}-MASK_{type_of_mask}-DECODER_BY_{decoder_type}-LR_{UPPER_LIM_LR}-W_MASK_{w_mask}-W_SIG_{w_signal}-LEFT_{i}'
+    prefix_id = f'{today}-MASK_{type_of_mask}-DECODER_BY_{decoder_type}-dropout_decoder-500hz-with_backbone-LR_{UPPER_LIM_LR}-W_MASK_{w_mask}-W_SIG_{w_signal}-LEFT_{i}'
     
     print(prefix_id)
     

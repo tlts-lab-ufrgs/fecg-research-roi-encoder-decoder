@@ -45,7 +45,7 @@ def mse_function(y_true, y_pred):
 
 #%% constants 
 
-FILES_TO_CALCULATE = '240524-sin_act-wt_droout_in_mask-upsampling-LR_0.0001'
+FILES_TO_CALCULATE = '2024-07-16-MASK_gaussian-DECODER_BY_convtransp-dropout_decoder-500hz-LR_0.0001'
 # results/010324-3CH-VAL_LOSS-MOD_DA6-LR_0.0001-W_MASK_0.3-W_SIG_0.1-LEFT_2
 
 # [w_mask, w_signal]
@@ -53,7 +53,7 @@ WEIGHTS_TO_EVAL = [
     [0.3, 0.1]
 ] 
 
-SAMPLING_FREQ = 1000
+SAMPLING_FREQ = 500
 
 CHANNELS = 3
 RESAMPLING_FREQUENCY_RATIO = int(1000 / SAMPLING_FREQ)
@@ -68,11 +68,12 @@ LEN_BATCH = int(512 / RESAMPLING_FREQUENCY_RATIO)
 LIMT_GAUS = int(30 / RESAMPLING_FREQUENCY_RATIO)
 QRS_DURATION = 0.1  # seconds, max
 QRS_DURATION_STEP = int(50 / RESAMPLING_FREQUENCY_RATIO)
-MIN_QRS_DISTANCE = int(300 / RESAMPLING_FREQUENCY_RATIO) # fs = 1000Hz
+MIN_QRS_DISTANCE = int(200 / RESAMPLING_FREQUENCY_RATIO) # fs = 1000Hz
 MASK_MIN_HEIGHT = 0.7
 
 LIMIT = int(300000 / RESAMPLING_FREQUENCY_RATIO)# - LEN_BATCH
 
+type_of_mask = 'gaussian'
 
 to_remove = [
     40,
@@ -188,7 +189,8 @@ for file in filenames:
                 QRS_DURATION_STEP,
                 leave_for_testing=filenames.index(file),
                 type_of_file='edf', 
-                resample_fs=RESAMPLING_FREQUENCY_RATIO
+                resample_fs=RESAMPLING_FREQUENCY_RATIO, 
+                type_of_mask=type_of_mask
             )
 
     fecg_testing_data = this_testing_data[1]
@@ -533,7 +535,7 @@ for j in range(NUMBER_OF_FILES):
 #%%
 
 print(mean_confidence_interval(f1_store, name='f1-score'))
-print(mean_confidence_interval(recall_store))
-print(mean_confidence_interval(precision_store))
+print(mean_confidence_interval(recall_store, name='recall'))
+print(mean_confidence_interval(precision_store, name='precision'))
 
 # %%
