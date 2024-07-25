@@ -4,10 +4,10 @@ import numpy as np
 
 def scheduler(epoch, lr):
   
-  if epoch < 20:
+  if epoch < 25:
     return lr
   else:
-    return np.float64(lr * np.exp(-0.01))
+    return np.float64(lr * np.exp(-0.1))
 
 def decayed_learning_rate(step, lr):
   

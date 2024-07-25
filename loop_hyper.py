@@ -66,7 +66,7 @@ today = datetime.today().strftime('%Y-%m-%d')
 
 for i in range(0, TOTAL_FILES, 1):
     
-    prefix_id = f'{today}-MASK_{type_of_mask}-DECODER_BY_{decoder_type}-dropout_decoder-500hz-with_backbone-LR_{UPPER_LIM_LR}-W_MASK_{w_mask}-W_SIG_{w_signal}-LEFT_{i}'
+    prefix_id = f'{today}-MASK_{type_of_mask}-DECODER_BY_{decoder_type}-500hz-backcone-rev1_da_changed-LR_{UPPER_LIM_LR}-W_MASK_{w_mask}-W_SIG_{w_signal}-LEFT_{i}'
     
     print(prefix_id)
     

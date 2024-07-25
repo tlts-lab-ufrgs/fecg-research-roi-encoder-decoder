@@ -23,7 +23,7 @@ from utils.mean_confidence_interval import mean_confidence_interval
 RESULTS_PATH = "/home/julia/Documents/research/sprint_1/results/ablation_extended/"
 DATA_PATH =  "/home/julia/Documents/research/datasets/abdominal-and-direct-fetal-ecg-database-1.0.0/"
 
-ABLATION_TEST = '2024-07-16-MASK_gaussian-DECODER_BY_convtransp-dropout_decoder-500hz-LR_0.0001'
+ABLATION_TEST = '2024-07-24-MASK_gaussian-DECODER_BY_convtransp-500hz-backcone-rev1_da_changed-LR_0.0001'
 
 
 SAMPLING_FREQ = 500

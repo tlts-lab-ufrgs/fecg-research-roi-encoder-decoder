@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 
 RESULTS_PATH = "/home/julia/Documents/research/sprint_1/results/ablation_extended/"
 
-ABLATION_TEST = '2024-07-10-MASK_gaussian-DECODER_BY_convtransp-two_partial_branches-LR_0.0001-W_MASK_0.3-W_SIG_0.1-LEFT_4'
+ABLATION_TEST = '2024-07-16-MASK_gaussian-DECODER_BY_convtransp-dropout_decoder-500hz-LR_0.0001-W_MASK_0.3-W_SIG_0.1-LEFT_4'
 
 data = pd.read_csv(f'{RESULTS_PATH}{ABLATION_TEST}/{ABLATION_TEST}-training_history.csv')
 

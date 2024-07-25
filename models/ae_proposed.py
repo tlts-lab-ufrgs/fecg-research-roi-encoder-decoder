@@ -52,7 +52,7 @@ class CustomDataAugmentation(tf.keras.layers.Layer):
     def call(self, inputs, training=None):
         if training:
             # baseline input
-            add_baseline = np.random.randint(0, 2)
+            add_baseline = np.random.randint(0, 4)
             if add_baseline != 0:
                 augmented_inputs = tf.numpy_function(add_baseline_wandering, [inputs, self.num_components, self.amplitude, self.fs], tf.float32)   
             else:
@@ -64,27 +64,37 @@ class CustomDataAugmentation(tf.keras.layers.Layer):
                 # gaussian noise
                 mu = 0
                 sigma = 1
-                noise = 0.1 * np.random.normal(mu, sigma, size=np.shape(augmented_inputs[:, :, i]))    
+                noise = 0.025 * np.random.normal(mu, sigma, size=np.shape(augmented_inputs[:, :, i]))    
                 augmented_inputs[:, :, i] += noise
             
-            # cutoff 
+            # # cutoff 
             
-            channel_to_cutoff = np.random.randint(0, 4)
+            # channel_to_cutoff = np.random.randint(0, 4)
             
-            begin_of_region = np.random.randint(0, len_batch - 50)
-            end_of_region = np.random.randint(begin_of_region + 50, len_batch)
+            # begin_of_region = np.random.randint(0, len_batch - 50)
+            # end_of_region = np.random.randint(begin_of_region + 50, len_batch)
             
-            # if channel_to_cutoff != -1:
-            augmented_inputs[:, begin_of_region:end_of_region + 1, channel_to_cutoff] = np.full(shape=np.shape(augmented_inputs[:, :, channel_to_cutoff]), fill_value = np.mean(augmented_inputs[:, :, channel_to_cutoff]))
+            # # if channel_to_cutoff != -1:
+            # augmented_inputs[:, begin_of_region:end_of_region + 1, channel_to_cutoff] = np.full(shape=np.shape(augmented_inputs[:, :, channel_to_cutoff]), fill_value = np.mean(augmented_inputs[:, :, channel_to_cutoff]))
                    
 
             # second cuttoff
+
+            do_cutoff = np.random.randint(0, 3)
+            if do_cutoff != 0:
             
-            channel_to_cutoff = np.random.randint(0, 4)
-            begin_of_region = np.random.randint(0, len_batch - 50)
-            end_of_region = np.random.randint(begin_of_region + 50, len_batch)
-            augmented_inputs[:, begin_of_region:end_of_region + 1, channel_to_cutoff] = 0 #np.full(shape=np.shape(augmented_inputs[:, :, channel_to_cutoff]), fill_value = np.max(augmented_inputs[:, :, channel_to_cutoff]))
+                channel_to_cutoff = np.random.randint(0, 4)
+                begin_of_region = np.random.randint(0, len_batch - 50)
+                end_of_region = np.random.randint(begin_of_region + 50, len_batch)
+                augmented_inputs[:, begin_of_region:end_of_region + 1, channel_to_cutoff] = 0.5 * np.random.normal(mu, sigma, size=np.shape(augmented_inputs[:, :, i]))  #np.full(shape=np.shape(augmented_inputs[:, :, channel_to_cutoff]), fill_value = np.max(augmented_inputs[:, :, channel_to_cutoff]))
                    
+            remove_whole_ch = np.random.randint(0, 4)
+            if remove_whole_ch == 0:
+            
+                channel_to_cutoff = np.random.randint(0, 4)
+                augmented_inputs[:, :, channel_to_cutoff] = 0 #np.full(shape=np.shape(augmented_inputs[:, :, channel_to_cutoff]), fill_value = np.max(augmented_inputs[:, :, channel_to_cutoff]))
+                   
+            
             # # add a start of gaussian at the end of beginning of the file:
             # add_gausian_tail_to_data = np.random.randint(0, 1)
             # if add_gausian_tail_to_data == 1:
@@ -145,6 +155,13 @@ class Loss:
         
         y_true_mod = tf.multiply(y_true[:, :, 0], y_true[:, :, 1])
         
+        # # corrupt the output to make it work as a DAE
+
+        # mu = 0
+        # sigma = 1
+        # noise = 0.1 * np.random.normal(mu, sigma, size=np.shape(y_pred))
+        # y_pred += noise
+
         y2_pred_combined = tf.multiply(y_pred[:, :, 0], y_true[:, :, 1])
         y1_pred_combined = tf.multiply(y_true[:, :, 0], y_pred[:, :, 1])
         
@@ -207,7 +224,15 @@ class ProposedAE:
 
     @staticmethod
     def conv_block(inputs, num_filters, kernel_size=3, stride=1, padding='same', activation='relu'):
-        x = Conv1D(num_filters, kernel_size, strides=stride, padding=padding)(inputs)
+        x = Conv1D(
+                num_filters, 
+                kernel_size, 
+                strides=stride, 
+                padding=padding, 
+                # kernel_regularizer=tf.keras.regularizers.L2(l2=1e-5),
+                # bias_regularizer=tf.keras.regularizers.L2(l2=1e-5),
+                # activity_regularizer=tf.keras.regularizers.L2(l2=1e-5)       
+            )(inputs)
         x = Activation(activation)(x)
         return x
 
@@ -304,7 +329,7 @@ class ProposedAE:
         decoder = Dropout(0.1)(decoder)
         decoder = self.decoder_block(decoder, encoder_block1, 64, kernel_size=4)
 
-        decoder = Dropout(0.1)(decoder)
+        # decoder = Dropout(0.1)(decoder)
 
         x = self.conv_block(decoder, num_filters=64, kernel_size=2, padding='valid', activation='relu')
 
@@ -329,7 +354,7 @@ class ProposedAE:
     def linknet(self): 
         inputs = Input(batch_shape=self.input_shape)
 
-        inputs = CustomDataAugmentation(num_components=15, amplitude=0.1, fs=1000)(inputs)
+        inputs = CustomDataAugmentation(num_components=15, amplitude=1, fs=500)(inputs)
         
         
         inputs = Dropout(0.5)(inputs)
@@ -367,6 +392,7 @@ class ProposedAE:
 
         self.model = tf.keras.Model(inputs=inputs, outputs=outputs, name='linknet')
         
+        self.model.load_weights('/home/julia/Documents/research/backbone/backcone-rev1.weights.h5', skip_mismatch=True, by_name=True)
         
         return
 

@@ -45,7 +45,7 @@ def mse_function(y_true, y_pred):
 
 #%% constants 
 
-FILES_TO_CALCULATE = '2024-07-16-MASK_gaussian-DECODER_BY_convtransp-dropout_decoder-500hz-LR_0.0001'
+FILES_TO_CALCULATE = '2024-07-24-MASK_gaussian-DECODER_BY_convtransp-500hz-backcone-rev1_da_changed-LR_0.0001'
 # results/010324-3CH-VAL_LOSS-MOD_DA6-LR_0.0001-W_MASK_0.3-W_SIG_0.1-LEFT_2
 
 # [w_mask, w_signal]
