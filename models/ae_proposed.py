@@ -23,22 +23,24 @@ from tensorflow.keras.layers import (
 from utils.masks_function import gaussian
 
 
-def add_baseline_wandering(x, num_components=5, amplitude=1, fs=1000):
+def add_baseline_wandering(x, amplitude=1, fs=1000):
     t = np.arange(len(x)) / fs
     baseline_wandering = np.zeros_like(x)
 
-    for _ in range(int(np.random.uniform(low=0, high=num_components))):
-        frequency = np.random.uniform(low=0.1, high=1)  # Random low frequency
-        phase = np.random.uniform(0, 2 * np.pi)  # Random phase
+    for _ in range(np.random.randint(2, 17)):
+        frequency = np.random.uniform(low=0.1, high=1, size=np.shape(x))  # Random low frequency
+        phase = np.random.uniform(0, 2 * np.pi, size=np.shape(x))  # Random phase
         component = amplitude * np.sin(2 * np.pi * frequency * t + phase)
         baseline_wandering += component
 
     x_with_baseline = x + baseline_wandering
     
+
+    x_with_baseline -= np.min(x_with_baseline)
     max_baseline = np.max(x_with_baseline) if np.max(x_with_baseline) != 0 else 1e-7
     
     # normalization
-    x_with_baseline = x_with_baseline / max_baseline
+    x_with_baseline *= 1 / max_baseline
     
     return x_with_baseline
 
@@ -51,62 +53,31 @@ class CustomDataAugmentation(tf.keras.layers.Layer):
 
     def call(self, inputs, training=None):
         if training:
-            # baseline input
-            add_baseline = np.random.randint(0, 4)
-            if add_baseline != 0:
-                augmented_inputs = tf.numpy_function(add_baseline_wandering, [inputs, self.num_components, self.amplitude, self.fs], tf.float32)   
-            else:
-                augmented_inputs = np.copy(inputs)            
+
+            augmented_inputs = tf.numpy_function(
+                add_baseline_wandering, 
+                [inputs, self.amplitude, self.fs], 
+                tf.float32
+            )          
             
             len_batch = np.shape(augmented_inputs)[1]
+            number_of_batches = np.shape(augmented_inputs)[0]
             
-            for i in [0, 1, 2, 3]:
-                # gaussian noise
+            # Gaussian
+            for i in [0, 1, 2]:
                 mu = 0
                 sigma = 1
-                noise = 0.025 * np.random.normal(mu, sigma, size=np.shape(augmented_inputs[:, :, i]))    
-                augmented_inputs[:, :, i] += noise
+                noise = np.random.normal(mu, sigma, size=np.shape(augmented_inputs[:, :, i]))    
+                noise_rescaled = np.multiply(0.1 * np.random.random_sample(number_of_batches), noise)
+                augmented_inputs[:, :, i] += noise_rescaled
             
             # # cutoff 
             
-            # channel_to_cutoff = np.random.randint(0, 4)
-            
-            # begin_of_region = np.random.randint(0, len_batch - 50)
-            # end_of_region = np.random.randint(begin_of_region + 50, len_batch)
-            
-            # # if channel_to_cutoff != -1:
-            # augmented_inputs[:, begin_of_region:end_of_region + 1, channel_to_cutoff] = np.full(shape=np.shape(augmented_inputs[:, :, channel_to_cutoff]), fill_value = np.mean(augmented_inputs[:, :, channel_to_cutoff]))
-                   
-
-            # second cuttoff
-
-            do_cutoff = np.random.randint(0, 3)
-            if do_cutoff != 0:
-            
-                channel_to_cutoff = np.random.randint(0, 4)
-                begin_of_region = np.random.randint(0, len_batch - 50)
-                end_of_region = np.random.randint(begin_of_region + 50, len_batch)
-                augmented_inputs[:, begin_of_region:end_of_region + 1, channel_to_cutoff] = 0.5 * np.random.normal(mu, sigma, size=np.shape(augmented_inputs[:, :, i]))  #np.full(shape=np.shape(augmented_inputs[:, :, channel_to_cutoff]), fill_value = np.max(augmented_inputs[:, :, channel_to_cutoff]))
-                   
-            remove_whole_ch = np.random.randint(0, 4)
-            if remove_whole_ch == 0:
-            
-                channel_to_cutoff = np.random.randint(0, 4)
-                augmented_inputs[:, :, channel_to_cutoff] = 0 #np.full(shape=np.shape(augmented_inputs[:, :, channel_to_cutoff]), fill_value = np.max(augmented_inputs[:, :, channel_to_cutoff]))
-                   
-            
-            # # add a start of gaussian at the end of beginning of the file:
-            # add_gausian_tail_to_data = np.random.randint(0, 1)
-            # if add_gausian_tail_to_data == 1:
-            #     at_the_end_of_data = np.random.randint(0, 1)
-                
-                
-            #     if at_the_end_of_data == 1:
-            #         augmented_inputs[:, [len_batch - 20, len_batch]] += gaussian(np.arange(len_batch - 20, len_batch), np.random.randint(len_batch, 65), 0.1)
-            #     else:
-            #         augmented_inputs[:, [0, 30]] += gaussian(np.arange(0, 30), np.random.randint(0, -32), 0.1)
-
-                        
+            channel_to_cutoff = np.random.randint(0, 4)
+            begin_of_region = np.random.randint(0, len_batch - 50)
+            end_of_region = np.random.randint(begin_of_region + 50, len_batch)
+            augmented_inputs[np.int32(number_of_batches * np.random.random_sample(15)), begin_of_region:end_of_region + 1, channel_to_cutoff] = 0 #np.random.normal(mu, sigma, size=np.shape(augmented_inputs[:, :, i]))  #np.full(shape=np.shape(augmented_inputs[:, :, channel_to_cutoff]), fill_value = np.max(augmented_inputs[:, :, channel_to_cutoff]))
+                                          
             return augmented_inputs
         else:
             return inputs
@@ -164,14 +135,19 @@ class Loss:
 
         y2_pred_combined = tf.multiply(y_pred[:, :, 0], y_true[:, :, 1])
         y1_pred_combined = tf.multiply(y_true[:, :, 0], y_pred[:, :, 1])
+
+        y_combined =  tf.multiply(y_pred[:, :, 0], y_pred[:, :, 1])
         
-        y_pred_combined = y1_pred_combined + y2_pred_combined
+        # y_pred_combined = y1_pred_combined + y2_pred_combined
 
         
         loss_combined = (
             tf.keras.losses.logcosh(y_true_mod, y2_pred_combined) + 
             tf.keras.losses.logcosh(y_true_mod, y1_pred_combined)
+            # tf.keras.losses.logcosh(y_true_mod, y_combined)
         )
+
+        # loss_combined = tf.keras.losses.logcosh(y_true_mod, y_combined)
         
         loss_signal = tf.keras.losses.logcosh(y_true[:, :, 0], y_pred[:, :, 0]) 
         loss_mask_mse = tf.keras.losses.logcosh(y_true[:, :, 1], y_pred[:, :, 1]) 
@@ -229,8 +205,6 @@ class ProposedAE:
                 kernel_size, 
                 strides=stride, 
                 padding=padding, 
-                # kernel_regularizer=tf.keras.regularizers.L2(l2=1e-5),
-                # bias_regularizer=tf.keras.regularizers.L2(l2=1e-5),
                 # activity_regularizer=tf.keras.regularizers.L2(l2=1e-5)       
             )(inputs)
         x = Activation(activation)(x)
@@ -324,9 +298,7 @@ class ProposedAE:
     def signal_decoder_block(self, x, encoder_block1, encoder_block2, encoder_block3):
 
         decoder = self.decoder_block(x, encoder_block3, 256, kernel_size=4)
-        decoder = Dropout(0.1)(decoder)
         decoder = self.decoder_block(decoder, encoder_block2, 128, kernel_size=4)
-        decoder = Dropout(0.1)(decoder)
         decoder = self.decoder_block(decoder, encoder_block1, 64, kernel_size=4)
 
         # decoder = Dropout(0.1)(decoder)
@@ -374,25 +346,14 @@ class ProposedAE:
         encoder_block4 = self.encoder_block(encoder_block3, num_filters=512)
         print('Encoder Block 4', np.shape(encoder_block4))
         encoder_block4 = Dropout(0.2)(encoder_block4)
-
-        # bottleneck = self.encoder_block(encoder_block4, num_filters=1024)
-        # print('Bottle neck', np.shape(bottleneck))
-        # bottleneck = Dropout(0.2)(bottleneck)
-
-    
-        # mask_decoded = self.mask_decoder_block(bottleneck[:, :, 256:512], encoder_block1, encoder_block2, encoder_block3, encoder_block4)
+   
         outputs = self.signal_decoder_block(encoder_block4, encoder_block1, encoder_block2, encoder_block3)
-
-        # Output
-
-        # outputs = tf.concat([signal_decoded, mask_decoded], 2)
-        
 
         print('Output form', np.shape(outputs))
 
         self.model = tf.keras.Model(inputs=inputs, outputs=outputs, name='linknet')
         
-        self.model.load_weights('/home/julia/Documents/research/backbone/backcone-rev1.weights.h5', skip_mismatch=True, by_name=True)
+        #self.model.load_weights('/home/julia/Documents/research/backbone/backbone-b2-dataset-2.weights.h5', skip_mismatch=True, by_name=True)
         
         return
 
