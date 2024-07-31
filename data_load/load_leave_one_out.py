@@ -102,7 +102,8 @@ def data_resizer(
     resample_fs=1, 
     channels = 3, 
     fecg_on_gt = True, 
-    type_of_mask = 'gaussian'
+    type_of_mask = 'gaussian', 
+    overlap_data = False
 ):
     
     """
@@ -217,13 +218,13 @@ def data_resizer(
                 continue
             
 
-            chunked_data = filedata[1::, (batch): ((batch + len_data))].transpose()
+            chunked_data = np.copy(filedata[1::, (batch): ((batch + len_data))].transpose())
             
             if np.shape(chunked_data.transpose())[1] != len_data:
                 continue
             
-            chunked_fecg_real_data = filedata[0, (batch): (batch + len_data)]
-            chunked_fecg_binary_data = mask[(batch): (batch + len_data)]
+            chunked_fecg_real_data = np.copy(filedata[0, (batch): (batch + len_data)])
+            chunked_fecg_binary_data = np.copy(mask[(batch): (batch + len_data)])
 
             
             # Data Normalization
@@ -242,8 +243,7 @@ def data_resizer(
                 chunked_fecg_real_data, 
                 chunked_fecg_binary_data
             ]).transpose()
-            
-            
+
 
             if filenames.index(file) == 0 and batch == 0:
 
@@ -251,12 +251,47 @@ def data_resizer(
                 fECG_store = np.copy([chunked_fecg_data])
 
             else:
+
                 aECG_store = np.vstack((aECG_store, [chunked_data]))
                 fECG_store = np.vstack((fECG_store, [chunked_fecg_data]))
 
+                if overlap_data and ((batch + len_data + int(len_data / 2))) <= np.shape(filedata)[-1]:
+
+                    init_interval = batch + int(len_data / 2)
+                    end_interval  = init_interval + len_data
+
+                    overlapped_segment_aceg = np.copy(filedata[1::, init_interval: end_interval].transpose())
+
+                    overlapped_segment_dfceg = np.copy(filedata[0, init_interval: end_interval])                       
+                    overlapped_segment_mask = np.copy(mask[init_interval: end_interval])
+
+                    # Normalization
+                    overlapped_segment_aceg -= np.min(overlapped_segment_aceg)
+                    overlapped_segment_dfceg -= np.min(overlapped_segment_dfceg)
+
+                    max_abdominal = np.abs(np.max(overlapped_segment_aceg)) if np.abs(np.max(overlapped_segment_aceg)) != 0 else 1e-7
+                    max_fecg = np.abs(np.max(overlapped_segment_dfceg)) if np.abs(np.max(overlapped_segment_dfceg)) != 0 else 1e-7
+            
+
+                    overlapped_segment_aceg *= (1 / max_abdominal) 
+                    overlapped_segment_dfceg *= (1 / max_fecg)
+
+
+                    overlapped_ground_truth = np.array([
+                        overlapped_segment_dfceg, 
+                        overlapped_segment_mask
+                    ]).transpose()
+
+
+
+                    aECG_store = np.vstack((aECG_store, [overlapped_segment_aceg]))
+                    fECG_store = np.vstack((fECG_store, [overlapped_ground_truth]))
+            
+
             batch += len_data
             index += 1
-    
+
+
     try:
         return aECG_store, fECG_store
     except:
@@ -276,7 +311,8 @@ def data_loader(
     dataset = '', 
     channels = 3, 
     fecg_on_gt = True, 
-    type_of_mask = 'gaussian'
+    type_of_mask = 'gaussian', 
+    overlap_data = False
 ):
     
     """
@@ -317,7 +353,8 @@ def data_loader(
         resample_fs=resample_fs, 
         channels = channels,  
         fecg_on_gt = fecg_on_gt, 
-        type_of_mask = type_of_mask
+        type_of_mask = type_of_mask,
+        overlap_data = overlap_data
     )
     
     if whole_dataset_training:
@@ -333,7 +370,8 @@ def data_loader(
             resample_fs=resample_fs,
             channels = channels, 
             fecg_on_gt = fecg_on_gt, 
-            type_of_mask = type_of_mask
+            type_of_mask = type_of_mask, 
+            overlap_data = False
         )
     
     
