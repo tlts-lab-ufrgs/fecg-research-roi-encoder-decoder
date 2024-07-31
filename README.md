@@ -25,3 +25,56 @@ Don't forget to change the local variables! The main files are developed to unde
 -------
 
 Any questions, you can send me an email to: juliacremus@gmail.com or julia.remus@inf.ufrgs.br
+
+
+-------
+
+## What combinations do we tested?
+
+In this section I will like to describe more of our combinations (to organize and to prevent to do this same tests again).
+
+<details>
+<summary>Use of fixed LR || Using bigger LRs</summary>
+
+- The max value of LR to the model converge is 0.00065, bigger than that the local min is to high. With this LR in some time the model will diverge, less than that help to fasten the convergence.
+
+- Fixed LR: LR = 0.00.1 if applied in the worse subject of ADFEG help to decrease the f1-score. EVEN THOUGH the loss curve was perfectly decreasing! I think it overfitted the data.
+
+</details>
+
+<details>
+<summary>The role of data augmentation</summary>
+
+The custom data augmentation process was fixed in this code version!
+
+- Increasing the variability and fixing previous errors in the project, help tp create more difficulty to the train the model, specially when the more variable data is not present;
+- If we see the learning curves of LEFT_0 and LEFT_4 we understand that the overfitting is happening, due to the really good training loss, but the worse results in the inference.
+
+</details>
+
+<details>
+<summary>Removing more layers from the encoder</summary>
+
+
+</details>
+
+<details>
+<summary>Creating overlapped data</summary>
+
+
+</details>
+
+<details>
+<summary>Using pre-trained model</summary>
+
+
+</details>
+
+<details>
+<summary>Adding regularization techniques</summary>
+
+- The dropout layers help the model to converge;
+- Using L1 and L2 norms inside the concolution blocks returned worse results, 
+possibly because of its magnitude in comparisson with the weights, idk, it didnt help at all.
+
+</details>
