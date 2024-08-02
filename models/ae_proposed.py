@@ -171,7 +171,9 @@ class ProposedAE:
         testing_data, 
         ground_truth_testing, 
         epochs = 250, 
-        epochs_in_patience = 15):
+        epochs_in_patience = 15, 
+        limit_epoch_for_lr_scheduler = 10
+    ):
         
         self.batch_size = batch_size
         self.input_shape = input_shape
@@ -187,8 +189,17 @@ class ProposedAE:
         self.ground_truth = ground_truth
         self.testing_data = testing_data
         self.ground_truth_testing = ground_truth_testing
+
+        self.limit_epoch_for_lr_scheduler = limit_epoch_for_lr_scheduler
         
         pass
+
+    def lr_scheduler(self, epoch, lr):
+  
+        if epoch < self.limit_epoch_for_lr_scheduler:
+            return lr
+        else:
+            return np.float64(lr * np.exp(-0.1))
     
     @staticmethod
     def downsampling(inputs, num_filters, stride):
@@ -257,43 +268,6 @@ class ProposedAE:
 
         return x
 
-
-    def mask_decoder_block(self, x, encoder_block1, encoder_block2, encoder_block3, encoder_block4):
-        
-        x = self.conv_block(x, num_filters=512, kernel_size=2, padding='valid', activation='relu')
-        x = Conv1DTranspose(
-            512, 
-            kernel_size=4, 
-            activation="relu", 
-            strides=2,
-            #output_padding=1
-        )(x)
-        x = self.conv_block(x, num_filters=512, kernel_size=1, padding='valid', activation='relu')
-        
-        decoder = self.decoder_block(x, encoder_block3, 256, kernel_size=4, activation='relu')
-        decoder = self.decoder_block(decoder, encoder_block2, 128, kernel_size=4, activation='relu')
-        decoder = self.decoder_block(decoder, encoder_block1, 64, kernel_size=4, activation='relu')
-        
-
-        # Last upsampling
-        x = self.conv_block(decoder, num_filters=512, kernel_size=2, padding='valid', activation='relu')
-        x = Conv1DTranspose(
-            512, 
-            kernel_size=4, 
-            activation="relu", 
-            strides=2,
-            #output_padding=1
-        )(x)
-        x = Dropout(0.2)(x)
-        x = self.conv_block(x, num_filters=16, kernel_size=1, padding='valid', activation='relu')
-        
-        print(np.shape(x))
-        
-        x = self.conv_block(x, num_filters=1, kernel_size=1, stride=1)
-                    
-        decode_mask = Activation('relu')(x)
-            
-        return decode_mask
 
     def signal_decoder_block(self, x, encoder_block1, encoder_block2, encoder_block3):
 
@@ -380,7 +354,7 @@ class ProposedAE:
                 # validation_data=(self.testing_data, self.ground_truth_testing),
                 shuffle=True, 
                 callbacks=[
-                    lr_scheduler,
+                    self.lr_scheduler,
                 ],
             )
         
