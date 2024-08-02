@@ -1,6 +1,7 @@
 import mne
 import glob
 import numpy as np
+import pandas as pd
 from scipy.signal import resample
 from sklearn.decomposition import FastICA
 from sklearn.decomposition import PCA
@@ -92,6 +93,137 @@ to_remove = [
     412,
 ]
 
+def load_b2_dataset(
+    dirs, 
+    data_path,
+    len_data, 
+    qrs_len,
+    resample_fs=1, 
+    overlap_data = False
+    ):
+
+    """
+    The b2 records are subdivided in folders for each pregancy, so you have to enter 
+    the folder to get the information. 
+
+    authors provide four electrode channels of aECG and four others with the 
+    supression of mECG, that in our case where used as ground truth
+    """
+
+    aECG_data = []
+    fECG_data = [] 
+
+    for dir in dirs:
+        
+        print('Reading data from:', dir.replace(data_path, ''))    
+
+        # Read the data
+
+        # os.path.
+
+        abdominal_file = glob.glob(dir + '/*abSignals*.txt')[0]
+        dfECG_file = glob.glob(dir + '/*dFECG*.txt')[0]
+        fetal_R_file   = glob.glob(dir + '/*Fetal_R*.txt')[0]
+
+        aecg_signals = pd.read_csv(abdominal_file, delimiter='\t', header=None)
+        dfecg_signals = pd.read_csv(dfECG_file, delimiter='\t', header=None)
+        fR_annotation = pd.read_csv(fetal_R_file, delimiter='\t', header=None)
+
+        DATA_LEN = aecg_signals[0].size
+
+        # generate the chuncked arrays
+
+        # the signal is read as a string, so u have to replace the commas before
+        for i in range(8): # 8 columns
+            aecg_signals[i] = aecg_signals[i].str.replace(',', '.').astype(np.float64)
+
+        for i in range(2): # 2 columns
+            dfecg_signals[i] = dfecg_signals[i].str.replace(',', '.').astype(np.float64)        
+
+        aecg_signals = aecg_signals.to_numpy()
+        dfecg_signals = dfecg_signals.to_numpy()
+        
+        # Direct fECG from B2 pregancy dataset has fs = 1kHz and the abdominal part 500Hz, so we downsample
+        # the fECG to 500Hz
+        resample_fs_ratio = 2 # 
+
+        resampled_signal = np.zeros(shape=(int(DATA_LEN), 2))
+        
+        for j in range(2):
+            resampled_signal[:, j] = resample(dfecg_signals[:, j], int(DATA_LEN))
+
+        dfecg_signals = np.copy(resampled_signal)
+        del resampled_signal
+
+        # Generate the mask
+
+        mask = np.zeros(shape = (DATA_LEN))
+
+        # the labour fetal R dont have the column 0 or 1 as the pregnancy one
+
+        for r_peak in fR_annotation.to_numpy():
+            r_peak = int(r_peak / 2)
+
+            begin_of_interval = 0 if r_peak - 2 * qrs_len < 0 else r_peak - 2 * qrs_len
+            end_of_interval = DATA_LEN if r_peak + 2 * qrs_len > DATA_LEN else r_peak + 2 * qrs_len
+
+            if end_of_interval > begin_of_interval:
+                qrs_region = np.arange(begin_of_interval, end_of_interval, step=1)
+                mask[qrs_region] = gaussian(qrs_region, r_peak, qrs_len/2)
+
+
+        
+
+        # reshape
+
+        batch = 0
+
+        while batch <= DATA_LEN - len_data:
+
+            # print('linha inicial', np.shape(aECG_data), np.shape(fECG_data))
+            
+            aecg_seg = np.copy(aecg_signals[batch : batch + len_data, 0:3])
+            fecg_seg = np.copy(dfecg_signals[batch : batch + len_data, 0])          
+        
+            # Normalize
+            aecg_seg -= np.min(aecg_seg)
+            max_aecg = np.abs(np.max(aecg_seg)) if np.abs(np.max(aecg_seg)) != 0 else 1e-7 
+            aecg_seg *= 1 / max_aecg
+
+            fecg_seg -= np.min(fecg_seg)
+            max_fecg = np.abs(np.max(fecg_seg)) if np.abs(np.max(fecg_seg)) != 0 else 1e-7 
+            fecg_seg *= 1 / max_fecg
+
+            # print('normalized', np.shape(aecg_seg), np.shape(fecg_seg))
+
+            # print('mask', np.shape(mask[batch : batch + len_data]))
+
+            mask_and_signal = np.array([
+                fecg_seg,
+                mask[batch : batch + len_data], 
+            ]).transpose()
+
+            # print('mask and signal', np.shape(mask_and_signal))
+
+
+            # Append to array
+            if len(aECG_data) == 0:
+
+                aECG_data = np.copy([aecg_seg])
+                fECG_data = np.array([mask_and_signal])
+
+            else:
+
+                aECG_data = np.vstack((aECG_data, [aecg_seg]))
+                fECG_data = np.vstack((fECG_data, [mask_and_signal]))
+
+            # print('linha final', np.shape(aECG_data), np.shape(fECG_data))
+
+
+            batch += len_data
+
+
+    return aECG_data, fECG_data
 
 def data_resizer(    
     filenames,
@@ -132,7 +264,7 @@ def data_resizer(
         # Read data and annotations
         
         
-        if type_of_file == 'edf':
+        if type_of_file == 'edf':  # adfecg
             
             try:
                 file_info = mne.io.read_raw_edf(file)
@@ -199,7 +331,7 @@ def data_resizer(
             transformer = FastICA(number_components)
             fecg_retrieved = transformer.fit_transform(tmpdata.reshape(-1, 1)) 
         
-            print('fecg retrieved shappe', np.shape(fecg_retrieved))
+            # print('fecg retrieved shappe', np.shape(fecg_retrieved))
         
             filedata[0] = fecg_retrieved[:, 0]
         
@@ -312,7 +444,8 @@ def data_loader(
     channels = 3, 
     fecg_on_gt = True, 
     type_of_mask = 'gaussian', 
-    overlap_data = False
+    overlap_data = False, 
+    load_training = True
 ):
     
     """
@@ -337,42 +470,71 @@ def data_loader(
     """
     
     # get the filenames and filter the left out
-    
-    filenames = glob.glob(path + "*." + type_of_file)
 
-    if not whole_dataset_training:
+    if load_training:
     
-        test_file = filenames.pop(leave_for_testing)
+        if type_of_file == 'edf':
+            filenames = glob.glob(path + "*." + type_of_file)
+        elif type_of_file == 'txt':
+            filenames = glob.glob(path + 'B*')
+
+        if not whole_dataset_training:
+            test_file = filenames.pop(leave_for_testing)
+
+        if type_of_file == 'txt':
+            training_data = load_b2_dataset(
+                filenames,
+                path, 
+                len_data, 
+                qrs_len, 
+                resample_fs, 
+                overlap_data=overlap_data
+            )
+        
+        else:
+            training_data = data_resizer(
+                filenames, 
+                len_data, 
+                qrs_duration, 
+                qrs_len, 
+                type_of_file, 
+                resample_fs=resample_fs, 
+                channels = channels,  
+                fecg_on_gt = fecg_on_gt, 
+                type_of_mask = type_of_mask,
+                overlap_data = overlap_data
+            )
     
-    training_data = data_resizer(
-        filenames, 
-        len_data, 
-        qrs_duration, 
-        qrs_len, 
-        type_of_file, 
-        resample_fs=resample_fs, 
-        channels = channels,  
-        fecg_on_gt = fecg_on_gt, 
-        type_of_mask = type_of_mask,
-        overlap_data = overlap_data
-    )
-    
+    else:
+        training_data = np.empty(shape=(1))
+
     if whole_dataset_training:
         testing_data = None
     
     else:
-        testing_data = data_resizer(
-            [test_file], 
-            len_data, 
-            qrs_duration, 
-            qrs_len, 
-            type_of_file, 
-            resample_fs=resample_fs,
-            channels = channels, 
-            fecg_on_gt = fecg_on_gt, 
-            type_of_mask = type_of_mask, 
-            overlap_data = False
-        )
+
+        if type_of_file == 'txt':
+            testing_data = load_b2_dataset(
+                [test_file],
+                path, 
+                len_data, 
+                qrs_len, 
+                resample_fs, 
+                overlap_data=overlap_data
+            )
+        else: 
+            testing_data = data_resizer(
+                [test_file], 
+                len_data, 
+                qrs_duration, 
+                qrs_len, 
+                type_of_file, 
+                resample_fs=resample_fs,
+                channels = channels, 
+                fecg_on_gt = fecg_on_gt, 
+                type_of_mask = type_of_mask, 
+                overlap_data = False
+            )
     
     
     
