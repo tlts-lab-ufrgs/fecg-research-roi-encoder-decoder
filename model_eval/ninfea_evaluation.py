@@ -20,7 +20,7 @@ from models.ae_proposed import Metric, Loss
 
 from utils.masks_function import gaussian
 from utils.lr_scheduler import callback as lr_scheduler
-from utils.mean_confidence_interval import mean_confidence_interval
+from utils.stats_fn import mean_confidence_interval
 
 #%% Load model
 

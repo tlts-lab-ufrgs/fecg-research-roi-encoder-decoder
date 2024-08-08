@@ -21,7 +21,7 @@ from sklearn.decomposition import FastICA
 from scipy.io import loadmat
 from ecgdetectors import panPeakDetect, Detectors
 
-from utils.mean_confidence_interval import mean_confidence_interval
+from utils.stats_fn import mean_confidence_interval
 
 #%%
 
