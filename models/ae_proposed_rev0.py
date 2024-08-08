@@ -50,52 +50,31 @@ class CustomDataAugmentation(tf.keras.layers.Layer):
 
     def call(self, inputs, training=None):
         if training:
-            # baseline input
-            add_baseline = np.random.randint(0, 2)
-            if add_baseline != 0:
-                augmented_inputs = tf.numpy_function(add_baseline_wandering, [inputs, self.num_components, self.amplitude, self.fs], tf.float32)   
-            else:
-                augmented_inputs = np.copy(inputs)            
+
+            augmented_inputs = tf.numpy_function(
+                add_baseline_wandering, 
+                [inputs, self.amplitude, self.fs], 
+                tf.float32
+            )          
             
             len_batch = np.shape(augmented_inputs)[1]
+            number_of_batches = np.shape(augmented_inputs)[0]
             
-            for i in [0, 1, 2, 3]:
-                # gaussian noise
+            # Gaussian
+            for i in [0, 1, 2]:
                 mu = 0
                 sigma = 1
-                noise = 0.1 * np.random.normal(mu, sigma, size=np.shape(augmented_inputs[:, :, i]))    
-                augmented_inputs[:, :, i] += noise
+                noise = np.random.normal(mu, sigma, size=np.shape(augmented_inputs[:, :, i]))    
+                noise_rescaled = np.multiply(0.1 * np.random.random_sample(number_of_batches), noise)
+                augmented_inputs[:, :, i] += noise_rescaled
             
-            # cutoff 
-            
-            channel_to_cutoff = np.random.randint(0, 4)
-            
-            begin_of_region = np.random.randint(0, 513 - 10)
-            end_of_region = np.random.randint(begin_of_region + 50, 513)
-            
-            # if channel_to_cutoff != -1:
-            augmented_inputs[:, begin_of_region:end_of_region + 1, channel_to_cutoff] = np.full(shape=np.shape(augmented_inputs[:, :, channel_to_cutoff]), fill_value = np.mean(augmented_inputs[:, :, channel_to_cutoff]))
-                   
-
-            # second cuttoff
+            # # cutoff 
             
             channel_to_cutoff = np.random.randint(0, 4)
-            begin_of_region = np.random.randint(0, len_batch - 10)
+            begin_of_region = np.random.randint(0, len_batch - 50)
             end_of_region = np.random.randint(begin_of_region + 50, len_batch)
-            augmented_inputs[:, begin_of_region:end_of_region + 1, channel_to_cutoff] = 0 #np.full(shape=np.shape(augmented_inputs[:, :, channel_to_cutoff]), fill_value = np.max(augmented_inputs[:, :, channel_to_cutoff]))
-                   
-            # add a start of gaussian at the end of beginning of the file:
-            add_gausian_tail_to_data = np.random.randint(0, 1)
-            if add_gausian_tail_to_data == 1:
-                at_the_end_of_data = np.random.randint(0, 1)
-                
-                
-                if at_the_end_of_data == 1:
-                    augmented_inputs[:, [len_batch - 20, len_batch]] += gaussian(np.arange(len_batch - 20, len_batch), np.random.randint(len_batch, 65), 0.1)
-                else:
-                    augmented_inputs[:, [0, 30]] += gaussian(np.arange(0, 30), np.random.randint(0, -32), 0.1)
-
-                        
+            augmented_inputs[np.int32(number_of_batches * np.random.random_sample(15)), begin_of_region:end_of_region + 1, channel_to_cutoff] = 0 #np.random.normal(mu, sigma, size=np.shape(augmented_inputs[:, :, i]))  #np.full(shape=np.shape(augmented_inputs[:, :, channel_to_cutoff]), fill_value = np.max(augmented_inputs[:, :, channel_to_cutoff]))
+                                          
             return augmented_inputs
         else:
             return inputs
@@ -104,7 +83,7 @@ class CustomDataAugmentation(tf.keras.layers.Layer):
         config = super(CustomDataAugmentation, self).get_config()
         config.update({'num_components': self.num_components, 'amplitude': self.amplitude, 'fs': self.fs})
         return config
-
+    
 class Metric: 
     def __init__(self) -> None:
         pass
@@ -314,7 +293,7 @@ class ProposedAE:
     def linknet(self): 
         inputs = Input(batch_shape=self.input_shape)
 
-        inputs = CustomDataAugmentation(num_components=15, amplitude=0.1, fs=1000)(inputs)
+        inputs = CustomDataAugmentation(num_components=15, amplitude=0.1, fs=500)(inputs)
         
         
         inputs = Dropout(0.5)(inputs)
