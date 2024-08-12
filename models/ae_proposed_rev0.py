@@ -2,11 +2,11 @@
 
 import numpy as np
 import tensorflow as tf
+import keras
 
-from utils.training_patience import callback as patience_callback
 from utils.lr_scheduler import callback as lr_scheduler
 
-from tensorflow.keras.layers import (
+from keras.layers import (
     Input, 
     Conv1D, 
     BatchNormalization, 
@@ -19,71 +19,128 @@ from tensorflow.keras.layers import (
     Dropout
 )
 
-from utils.masks_function import gaussian
+@tf.function
+def add_baseline_wandering(x, num_components=7, amplitude=0.1, fs=1000):
+    t = tf.range(tf.shape(x)[1], dtype=tf.float32) / fs
+    time_stacked = tf.stack([t, t, t], axis=-1)
+    baseline_wandering = tf.zeros_like(x, dtype=tf.float32)
 
+    num_components = tf.cast(num_components, tf.int32)
+    frequencies = tf.random.uniform(shape=[num_components, 1, 1], minval=0.1, maxval=1, dtype=tf.float32)
+    phases = tf.random.uniform(shape=[num_components, 1, 1], minval=0, maxval=2 * np.pi, dtype=tf.float32)
 
-def add_baseline_wandering(x, num_components=5, amplitude=1, fs=1000):
-    t = np.arange(len(x)) / fs
-    baseline_wandering = np.zeros_like(x)
-
-    for _ in range(int(np.random.uniform(low=0, high=num_components))):
-        frequency = np.random.uniform(low=0.1, high=1)  # Random low frequency
-        phase = np.random.uniform(0, 2 * np.pi)  # Random phase
-        component = amplitude * np.sin(2 * np.pi * frequency * t + phase)
-        baseline_wandering += component
+    components = amplitude * tf.sin(2 * np.pi * frequencies * time_stacked + phases)
+    components_sum = tf.reduce_sum(components, axis=0)
+    baseline_wandering += components_sum
 
     x_with_baseline = x + baseline_wandering
-    
-    max_baseline = np.max(x_with_baseline) if np.max(x_with_baseline) != 0 else 1e-7
-    
-    # normalization
-    x_with_baseline = x_with_baseline / max_baseline
-    
+
+    min_val = tf.reduce_min(x_with_baseline, axis=1, keepdims=True)
+    x_with_baseline -= min_val
+
+    max_val = tf.reduce_max(x_with_baseline, axis=1, keepdims=True)
+    max_val = tf.where(tf.equal(max_val, 0), tf.constant(1e-7, dtype=max_val.dtype), max_val)
+    x_with_baseline /= max_val
+
     return x_with_baseline
 
-class CustomDataAugmentation(tf.keras.layers.Layer):
-    def __init__(self, num_components=15, amplitude=1, fs=1000, **kwargs):
-        super(CustomDataAugmentation, self).__init__(**kwargs)
+
+class CustomDataAugmentation(keras.layers.Layer):
+    def __init__(self, num_components=7, amplitude=0.1, fs=500, **kwargs):
+        super().__init__(**kwargs)
         self.num_components = num_components
         self.amplitude = amplitude
         self.fs = fs
 
-    def call(self, inputs, training=None):
+    def call(self, inputs, training=False):
         if training:
-
-            augmented_inputs = tf.numpy_function(
-                add_baseline_wandering, 
-                [inputs, self.amplitude, self.fs], 
-                tf.float32
-            )          
-            
-            len_batch = np.shape(augmented_inputs)[1]
-            number_of_batches = np.shape(augmented_inputs)[0]
-            
-            # Gaussian
-            for i in [0, 1, 2]:
-                mu = 0
-                sigma = 1
-                noise = np.random.normal(mu, sigma, size=np.shape(augmented_inputs[:, :, i]))    
-                noise_rescaled = np.multiply(0.1 * np.random.random_sample(number_of_batches), noise)
-                augmented_inputs[:, :, i] += noise_rescaled
-            
-            # # cutoff 
-            
-            channel_to_cutoff = np.random.randint(0, 4)
-            begin_of_region = np.random.randint(0, len_batch - 50)
-            end_of_region = np.random.randint(begin_of_region + 50, len_batch)
-            augmented_inputs[np.int32(number_of_batches * np.random.random_sample(15)), begin_of_region:end_of_region + 1, channel_to_cutoff] = 0 #np.random.normal(mu, sigma, size=np.shape(augmented_inputs[:, :, i]))  #np.full(shape=np.shape(augmented_inputs[:, :, channel_to_cutoff]), fill_value = np.max(augmented_inputs[:, :, channel_to_cutoff]))
-                                          
-            return augmented_inputs
+            return self._augment(inputs)
         else:
             return inputs
+        
+
+    @tf.function
+    def _augment(self, inputs):
+
+        signal_shape = tf.shape(inputs)
+        batch_size = signal_shape[0]
+        quarter_batch_size = tf.cast(batch_size / 4, tf.int32)
+
+        inputs_float32 = tf.cast(inputs, dtype=np.float32)
+
+        indices_aug = tf.random.uniform(shape=[quarter_batch_size], minval=0, maxval=signal_shape[0], dtype=tf.int32)
+        indices_aug = tf.expand_dims(indices_aug, axis=-1) 
+        inputs_with_bl = add_baseline_wandering(tf.gather(inputs_float32, indices_aug[:, 0]), self.num_components, self.amplitude, self.fs)
+        augmented_inputs = tf.tensor_scatter_nd_update(
+            inputs_float32,
+            indices_aug,
+            inputs_with_bl
+        )
+
+        mu = 0.0
+        sigma = 1.0
+        noise = 0.05 * tf.random.normal(shape=(quarter_batch_size, signal_shape[1], signal_shape[2]), mean=mu, stddev=sigma)
+
+        indices = tf.random.uniform(shape=[quarter_batch_size], minval=0, maxval=signal_shape[0], dtype=tf.int32)
+        scattered_noise = augmented_inputs + tf.scatter_nd(
+            indices=tf.expand_dims(indices, axis=-1),
+            updates=noise,
+            shape=tf.shape(augmented_inputs)
+        )
+
+        # Batch indices
+        batch_indices = tf.range(quarter_batch_size)
+
+        # Precompute all possible indices for the signal length
+        all_possible_indices = tf.range(signal_shape[1])
+
+        # Initialize the scatter_updates with the original tensor
+        scatter_updates = scattered_noise
+
+        # Function to update the tensor in a loop-compatible way
+        def update_tensor(i, scatter_updates):
+            # Randomly select channel, begin, and end of the region
+            channel_to_cutoff = tf.random.uniform(shape=[], minval=0, maxval=3, dtype=tf.int32)
+            begin_of_region = tf.random.uniform(shape=[], minval=0, maxval=signal_shape[1] - 50, dtype=tf.int32)
+            end_of_region = begin_of_region + tf.random.uniform(shape=[], minval=10, maxval=50, dtype=tf.int32)
+            
+            # Mask to select the indices within the range [begin_of_region, end_of_region)
+            mask = (all_possible_indices >= begin_of_region) & (all_possible_indices < end_of_region)
+            region_indices = tf.boolean_mask(all_possible_indices, mask)
+            
+            # Combine batch, region, and channel indices into a single tensor
+            batch_index = tf.fill([tf.size(region_indices)], batch_indices[i])
+            channel_index = tf.fill([tf.size(region_indices)], channel_to_cutoff)
+            indices_to_update = tf.stack([batch_index, region_indices, channel_index], axis=-1)
+            
+            # Generate updates (zeros in this case)
+            updates = tf.zeros([tf.size(region_indices)], dtype=tf.float32)
+            
+            # Apply scatter update to the cumulative tensor
+            scatter_updates = tf.tensor_scatter_nd_update(scatter_updates, indices_to_update, updates)
+            
+            return i + 1, scatter_updates
+
+        # Run the loop to update the TensorArray
+        _, scatter_updates = tf.while_loop(
+            cond=lambda i, _: tf.less(i, quarter_batch_size),
+            body=update_tensor,
+            loop_vars=[tf.constant(0), scatter_updates]
+        )
+
+        return scatter_updates
+
+    def compute_output_shape(self, input_shape):
+        return input_shape
 
     def get_config(self):
         config = super(CustomDataAugmentation, self).get_config()
-        config.update({'num_components': self.num_components, 'amplitude': self.amplitude, 'fs': self.fs})
+        config.update({
+            'num_components': self.num_components, 
+            'amplitude': self.amplitude, 
+            'fs': self.fs
+        })
         return config
-    
 class Metric: 
     def __init__(self) -> None:
         pass
@@ -140,8 +197,7 @@ class Loss:
         loss = self.w_mask * loss_mask_mse + self.w_combined * loss_combined + self.w_signal * loss_signal
 
         return loss
-            
-        
+               
 class ProposedAE:
     
     def __init__(self, 
@@ -229,107 +285,112 @@ class ProposedAE:
 
     def mask_decoder_block(self, x, encoder_block1, encoder_block2, encoder_block3, encoder_block4):
         
-        x = self.conv_block(x, num_filters=512, kernel_size=2, padding='valid', activation='relu')
-        x = Conv1DTranspose(
+        conv1 = self.conv_block(x, num_filters=512, kernel_size=2, padding='valid', activation='relu')
+        deconv1 = Conv1DTranspose(
             512, 
             kernel_size=4, 
             activation="relu", 
             strides=2,
             #output_padding=1
-        )(x)
-        x = self.conv_block(x, num_filters=512, kernel_size=1, padding='valid', activation='relu')
+        )(conv1)
+        conv2 = self.conv_block(deconv1, num_filters=512, kernel_size=1, padding='valid', activation='relu')
         
-        decoder = self.decoder_block(x, encoder_block3, 256, kernel_size=4, activation='relu')
-        decoder = self.decoder_block(decoder, encoder_block2, 128, kernel_size=4, activation='relu')
-        decoder = self.decoder_block(decoder, encoder_block1, 64, kernel_size=4, activation='relu')
+        decoder_2 = self.decoder_block(conv2, encoder_block3, 256, kernel_size=4, activation='relu')
+        decoder_3 = self.decoder_block(decoder_2, encoder_block2, 128, kernel_size=4, activation='relu')
+        decoder_4 = self.decoder_block(decoder_3, encoder_block1, 64, kernel_size=4, activation='relu')
         
 
         # Last upsampling
-        x = self.conv_block(decoder, num_filters=512, kernel_size=2, padding='valid', activation='relu')
-        x = Conv1DTranspose(
+        conv5 = self.conv_block(decoder_4, num_filters=512, kernel_size=2, padding='valid', activation='relu')
+        deconv5 = Conv1DTranspose(
             512, 
             kernel_size=4, 
             activation="relu", 
             strides=2,
             #output_padding=1
-        )(x)
-        x = Dropout(0.2)(x)
-        x = self.conv_block(x, num_filters=16, kernel_size=1, padding='valid', activation='relu')
+        )(conv5)
+        deconv_drop = Dropout(0.2)(deconv5)
+        conv6 = self.conv_block(deconv_drop, num_filters=16, kernel_size=1, padding='valid', activation='relu')
         
-        print(np.shape(x))
+        print(np.shape(conv6))
         
-        x = self.conv_block(x, num_filters=1, kernel_size=1, stride=1)
+        mask = self.conv_block(conv6, num_filters=1, kernel_size=1, stride=1)
                     
-        decode_mask = Activation('relu')(x)
+        decode_mask = Activation('relu')(mask)
             
         return decode_mask
 
     def signal_decoder_block(self, x, encoder_block1, encoder_block2, encoder_block3, encoder_block4):
 
-        decoder = self.decoder_block(x, encoder_block4[:, :, 0:256], 256, kernel_size=4)
-        decoder = self.decoder_block(decoder, encoder_block3[:, :, 0:128], 128, kernel_size=4)
-        decoder = self.decoder_block(decoder, encoder_block2[:, :, 0:64], 64, kernel_size=4)
-        decoder = self.decoder_block(decoder, encoder_block1[:, :, 0:32], 32, kernel_size=4)
+        decoder_1 = self.decoder_block(x, encoder_block4[:, :, 0:256], 256, kernel_size=4)
+        decoder_2 = self.decoder_block(decoder_1, encoder_block3[:, :, 0:128], 128, kernel_size=4)
+        decoder_3 = self.decoder_block(decoder_2, encoder_block2[:, :, 0:64], 64, kernel_size=4)
+        decoder_4 = self.decoder_block(decoder_3, encoder_block1[:, :, 0:32], 32, kernel_size=4)
 
-        x = self.conv_block(decoder, num_filters=512, kernel_size=2, padding='valid', activation='relu')
+        conv_5 = self.conv_block(decoder_4, num_filters=512, kernel_size=2, padding='valid', activation='relu')
         
-        x = Conv1DTranspose(
+        decoder_5 = Conv1DTranspose(
             512, 
             kernel_size=4, 
             activation="relu", 
             strides=2,
             #output_padding=0
-        )(x)
-        x = self.conv_block(x, num_filters=64, kernel_size=1, padding='valid', activation='relu')
+        )(conv_5)
+        conv_6 = self.conv_block(decoder_5, num_filters=64, kernel_size=1, padding='valid', activation='relu')
         
-        print(np.shape(x))
+        print(np.shape(conv_6))
         
-        x = self.conv_block(x, num_filters=1, kernel_size=1, stride=1)
+        signal = self.conv_block(conv_6, num_filters=1, kernel_size=1, stride=1)
                     
-        decode_signal = Activation('relu')(x)
+        decode_signal = Activation('relu')(signal)
             
         return decode_signal
 
     def linknet(self): 
         inputs = Input(batch_shape=self.input_shape)
 
-        inputs = CustomDataAugmentation(num_components=15, amplitude=0.1, fs=500)(inputs)
+        aug_inputs = CustomDataAugmentation(
+            num_components=15, 
+            amplitude=0.2, 
+            fs=500, 
+        )(inputs)
+
+        # print('Input shape', np.shape(aug_inputs))
         
-        
-        inputs = Dropout(0.5)(inputs)
+        #drop_inputs = Dropout(0.2)(aug_inputs)
         # Encoder
-        encoder_block1 = self.encoder_block(inputs, num_filters=64)
+        encoder_block1 = self.encoder_block(aug_inputs, num_filters=64)
         print('Encoder Block 1', np.shape(encoder_block1))
-        encoder_block1 = Dropout(0.2)(encoder_block1)
+        encoder_block1_drop = Dropout(0.2)(encoder_block1)
 
-        encoder_block2 = self.encoder_block(encoder_block1, num_filters=128)
+        encoder_block2 = self.encoder_block(encoder_block1_drop, num_filters=128)
         print('Encoder Block 2', np.shape(encoder_block2))
-        encoder_block2 = Dropout(0.2)(encoder_block2)
+        encoder_block2_drop = Dropout(0.2)(encoder_block2)
 
-        encoder_block3 = self.encoder_block(encoder_block2, num_filters=256)
+        encoder_block3 = self.encoder_block(encoder_block2_drop, num_filters=256)
         print('Encoder Block 3', np.shape(encoder_block3))
-        encoder_block3 = Dropout(0.2)(encoder_block3)
+        encoder_block3_drop = Dropout(0.2)(encoder_block3)
 
-        encoder_block4 = self.encoder_block(encoder_block3, num_filters=512)
+        encoder_block4 = self.encoder_block(encoder_block3_drop, num_filters=512)
         print('Encoder Block 4', np.shape(encoder_block4))
-        encoder_block4 = Dropout(0.2)(encoder_block4)
+        encoder_block4_drop = Dropout(0.2)(encoder_block4)
 
-        bottleneck = self.encoder_block(encoder_block4, num_filters=1024)
+        bottleneck = self.encoder_block(encoder_block4_drop, num_filters=1024)
         print('Bottle neck', np.shape(bottleneck))
-        bottleneck = Dropout(0.2)(bottleneck)
+        bottleneck_drop = Dropout(0.2)(bottleneck)
 
     
-        mask_decoded = self.mask_decoder_block(bottleneck[:, :, 256:512], encoder_block1, encoder_block2, encoder_block3, encoder_block4)
-        signal_decoded = self.signal_decoder_block(bottleneck[:, :, 0:256], encoder_block1, encoder_block2, encoder_block3, encoder_block4)
+        mask_decoded = self.mask_decoder_block(bottleneck_drop[:, :, 256:512], encoder_block1, encoder_block2, encoder_block3, encoder_block4)
+        signal_decoded = self.signal_decoder_block(bottleneck_drop[:, :, 0:256], encoder_block1, encoder_block2, encoder_block3, encoder_block4)
 
         # Output
 
-        outputs = tf.concat([signal_decoded, mask_decoded], 2)
+        outputs = keras.ops.concatenate([signal_decoded, mask_decoded], 2)
         
 
         print('Output form', np.shape(outputs))
 
-        self.model = tf.keras.Model(inputs=inputs, outputs=outputs, name='linknet')
+        self.model = keras.Model(inputs=inputs, outputs=outputs, name='linknet')
         
         
         return
@@ -337,13 +398,11 @@ class ProposedAE:
     def fit_and_evaluate(self):
         
         self.linknet()
-        
+
         self.model.compile(
-            optimizer=tf.keras.optimizers.Adam(learning_rate=self.init_lr), 
+            optimizer=keras.optimizers.Adam(learning_rate=self.init_lr), 
             loss=Loss(self.w_signal, self.w_signal, self.w_combined).loss, # 
             metrics=[
-                tf.keras.metrics.RootMeanSquaredError(name='rmse'), 
-                'mean_squared_error', 
                 Metric.mse_signal, 
                 Metric.mse_mask
             ]
@@ -354,7 +413,6 @@ class ProposedAE:
                 self.ground_truth, 
                 epochs=self.total_epochs, 
                 batch_size=self.batch_size,
-                # validation_data=(self.testing_data, self.ground_truth_testing),
                 shuffle=True, 
                 callbacks=[
                     lr_scheduler,

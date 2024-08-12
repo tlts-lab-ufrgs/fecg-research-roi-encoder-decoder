@@ -269,10 +269,10 @@ class ProposedAE:
         return x
 
 
-    def signal_decoder_block(self, x, encoder_block1, encoder_block2, encoder_block3):
+    def signal_decoder_block(self, x, encoder_block1, encoder_block2):
 
-        decoder = self.decoder_block(x, encoder_block3, 256, kernel_size=4)
-        decoder = self.decoder_block(decoder, encoder_block2, 128, kernel_size=4)
+        #decoder = self.decoder_block(x, encoder_block3, 256, kernel_size=4)
+        decoder = self.decoder_block(x, encoder_block2, 128, kernel_size=4)
         decoder = self.decoder_block(decoder, encoder_block1, 64, kernel_size=4)
 
         # decoder = Dropout(0.1)(decoder)
@@ -317,17 +317,17 @@ class ProposedAE:
         print('Encoder Block 3', np.shape(encoder_block3))
         encoder_block3 = Dropout(0.2)(encoder_block3)
 
-        encoder_block4 = self.encoder_block(encoder_block3, num_filters=512)
-        print('Encoder Block 4', np.shape(encoder_block4))
-        encoder_block4 = Dropout(0.2)(encoder_block4)
+        # encoder_block4 = self.encoder_block(encoder_block3, num_filters=512)
+        # print('Encoder Block 4', np.shape(encoder_block4))
+        # encoder_block4 = Dropout(0.2)(encoder_block4)
    
-        outputs = self.signal_decoder_block(encoder_block4, encoder_block1, encoder_block2, encoder_block3)
+        outputs = self.signal_decoder_block(encoder_block3, encoder_block1, encoder_block2)
 
         print('Output form', np.shape(outputs))
 
         self.model = tf.keras.Model(inputs=inputs, outputs=outputs, name='linknet')
         
-        # self.model.load_weights('/home/julia/Documents/research/backbone/backbone-b2-dataset-2.weights.h5', skip_mismatch=True, by_name=True)
+        #self.model.load_weights('/home/julia/Documents/research/backbone/backbone-b2-dataset-FIXED.weights.h5', skip_mismatch=True, by_name=True)
         
         return
 
