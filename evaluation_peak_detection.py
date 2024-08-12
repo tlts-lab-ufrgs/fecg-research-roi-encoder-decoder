@@ -30,7 +30,7 @@ from ecgdetectors import panPeakDetect, Detectors
 from scipy.signal import find_peaks
 
 from data_load.load_leave_one_out import data_loader
-from utils.mean_confidence_interval import mean_confidence_interval
+# from utils.mean_confidence_interval import mean_confidence_interval
 
 #%% definition for fitting
        
@@ -45,7 +45,7 @@ def mse_function(y_true, y_pred):
 
 #%% constants 
 
-FILES_TO_CALCULATE = '2024-07-24-MASK_gaussian-DECODER_BY_convtransp-500hz-backcone-rev1_da_changed-LR_0.0001'
+FILES_TO_CALCULATE = '2024-08-10-MASK_gaussian-DECODER_BY_convtransp-ED_rev0-500hz-ABCD-3CH-WT_DA-LR_0.0001'
 # results/010324-3CH-VAL_LOSS-MOD_DA6-LR_0.0001-W_MASK_0.3-W_SIG_0.1-LEFT_2
 
 # [w_mask, w_signal]
@@ -73,7 +73,7 @@ MASK_MIN_HEIGHT = 0.7
 
 LIMIT = int(300000 / RESAMPLING_FREQUENCY_RATIO)# - LEN_BATCH
 
-type_of_mask = 'gaussian'
+type_of_mask = 'none'
 
 to_remove = [
     40,
@@ -533,6 +533,8 @@ for j in range(NUMBER_OF_FILES):
 
 
 #%%
+
+from utils.stats_fn import mean_confidence_interval
 
 print(mean_confidence_interval(f1_store, name='f1-score'))
 print(mean_confidence_interval(recall_store, name='recall'))

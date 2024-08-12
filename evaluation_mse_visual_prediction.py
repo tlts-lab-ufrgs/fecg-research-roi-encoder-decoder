@@ -15,15 +15,18 @@ import tensorflow as tf
 import matplotlib.pyplot as plt
 from sklearn.metrics import r2_score
 from data_load.load_leave_one_out import data_loader
-from utils.mean_confidence_interval import mean_confidence_interval
+from utils.stats_fn import mean_confidence_interval
+
+from data_load.data_loader import DataLoader
     
 #%% constants 
 
 
 RESULTS_PATH = "/home/julia/Documents/research/sprint_1/results/ablation_extended/"
 DATA_PATH =  "/home/julia/Documents/research/datasets/abdominal-and-direct-fetal-ecg-database-1.0.0/"
+# DATA_PATH = "/home/julia/Documents/research/datasets/b2-records/B2_Labour_dataset/"
 
-ABLATION_TEST = '2024-07-24-MASK_gaussian-DECODER_BY_convtransp-500hz-backcone-rev1_da_changed-LR_0.0001'
+ABLATION_TEST = '2024-08-10-MASK_gaussian-DECODER_BY_convtransp-ED_rev0-500hz-ABCD-3CH-WT_DA_fixed-LR_0.0001'
 
 
 SAMPLING_FREQ = 500
@@ -43,7 +46,11 @@ LIMIT = int(300000 / RESAMPLING_FREQUENCY_RATIO)# - LEN_BATCH
 
 TEST_FILE = 0
 
+TYPE_OF_FILE = 'edf'
+
 type_of_mask = 'gaussian'
+
+NUMBER_OF_FILES = 5
 
 #%%
 
@@ -55,22 +62,24 @@ def mse_function(y_true, y_pred):
     
     return mse_value
 
+
+data_loader = DataLoader(
+    DATA_PATH, 
+    LEN_BATCH, 
+    RESAMPLING_FREQUENCY_RATIO, 
+    TYPE_OF_FILE, 
+    QRS_DURATION_STEP, 
+    QRS_DURATION, 
+    load_training_set=False, 
+)
+
 #%% data load
 
 testing_data = {}
 
-for i in range(5):
+for i in range(NUMBER_OF_FILES):
     
-    _, this_testing_data = data_loader(
-                DATA_PATH, 
-                LEN_BATCH, 
-                QRS_DURATION, 
-                QRS_DURATION_STEP,
-                resample_fs=RESAMPLING_FREQUENCY_RATIO,
-                leave_for_testing=i,
-                type_of_file='edf', 
-                type_of_mask=type_of_mask
-            )
+    _, this_testing_data = data_loader.data_load(i)
 
     fecg_testing_data = this_testing_data[1]
     fecg_roi = fecg_testing_data[:, :, 0] * np.where(
@@ -99,6 +108,9 @@ for i in results_dir:
     
     w_mask = float(i.split('-W_MASK_')[1].split('-')[0])
     w_signal = float(i.split('-W_SIG_')[1].split('-')[0])
+
+    if i.split("-")[-1] == 'model':
+        continue 
 
     test_file = int(i.split("-")[-1].replace('LEFT_', ''))
     
