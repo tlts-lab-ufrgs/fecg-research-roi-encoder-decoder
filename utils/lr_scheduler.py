@@ -1,5 +1,5 @@
 
-import tensorflow as tf
+import keras
 import numpy as np
 
 def scheduler(epoch, lr):
@@ -19,4 +19,4 @@ def decayed_learning_rate(step, lr):
   
   return np.float32(initial_decay_lr * decayed)
 
-callback = tf.keras.callbacks.LearningRateScheduler(scheduler)
+callback = keras.callbacks.LearningRateScheduler(scheduler)
