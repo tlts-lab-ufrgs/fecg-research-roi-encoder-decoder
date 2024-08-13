@@ -3,6 +3,7 @@
 import time
 import numpy as np
 import tensorflow as tf
+import keras
 
 from utils.training_patience import callback as patience_callback
 from utils.lr_scheduler import callback as lr_scheduler
@@ -22,71 +23,129 @@ from tensorflow.keras.layers import (
 
 from utils.masks_function import gaussian
 
+@tf.function
+def add_baseline_wandering(x, num_components=7, amplitude=0.1, fs=1000):
+    t = tf.range(tf.shape(x)[1], dtype=tf.float32) / fs
+    time_stacked = tf.stack([t, t, t], axis=-1)
+    baseline_wandering = tf.zeros_like(x, dtype=tf.float32)
 
-def add_baseline_wandering(x, amplitude=1, fs=1000):
-    t = np.arange(len(x)) / fs
-    baseline_wandering = np.zeros_like(x)
+    num_components = tf.cast(num_components, tf.int32)
+    frequencies = tf.random.uniform(shape=[num_components, 1, 1], minval=0.1, maxval=1, dtype=tf.float32)
+    phases = tf.random.uniform(shape=[num_components, 1, 1], minval=0, maxval=2 * np.pi, dtype=tf.float32)
 
-    for _ in range(np.random.randint(2, 17)):
-        frequency = np.random.uniform(low=0.1, high=1, size=np.shape(x))  # Random low frequency
-        phase = np.random.uniform(0, 2 * np.pi, size=np.shape(x))  # Random phase
-        component = amplitude * np.sin(2 * np.pi * frequency * t + phase)
-        baseline_wandering += component
+    components = amplitude * tf.sin(2 * np.pi * frequencies * time_stacked + phases)
+    components_sum = tf.reduce_sum(components, axis=0)
+    baseline_wandering += components_sum
 
     x_with_baseline = x + baseline_wandering
-    
 
-    x_with_baseline -= np.min(x_with_baseline)
-    max_baseline = np.max(x_with_baseline) if np.max(x_with_baseline) != 0 else 1e-7
-    
-    # normalization
-    x_with_baseline *= 1 / max_baseline
-    
+    min_val = tf.reduce_min(x_with_baseline, axis=1, keepdims=True)
+    x_with_baseline -= min_val
+
+    max_val = tf.reduce_max(x_with_baseline, axis=1, keepdims=True)
+    max_val = tf.where(tf.equal(max_val, 0), tf.constant(1e-7, dtype=max_val.dtype), max_val)
+    x_with_baseline /= max_val
+
     return x_with_baseline
 
-class CustomDataAugmentation(tf.keras.layers.Layer):
-    def __init__(self, num_components=15, amplitude=1, fs=1000, **kwargs):
-        super(CustomDataAugmentation, self).__init__(**kwargs)
+
+class CustomDataAugmentation(keras.layers.Layer):
+    def __init__(self, num_components=7, amplitude=0.1, fs=500, **kwargs):
+        super().__init__(**kwargs)
         self.num_components = num_components
         self.amplitude = amplitude
         self.fs = fs
 
     def call(self, inputs, training=None):
         if training:
-
-            augmented_inputs = tf.numpy_function(
-                add_baseline_wandering, 
-                [inputs, self.amplitude, self.fs], 
-                tf.float32
-            )          
-            
-            len_batch = np.shape(augmented_inputs)[1]
-            number_of_batches = np.shape(augmented_inputs)[0]
-            
-            # Gaussian
-            for i in [0, 1, 2]:
-                mu = 0
-                sigma = 1
-                noise = np.random.normal(mu, sigma, size=np.shape(augmented_inputs[:, :, i]))    
-                noise_rescaled = np.multiply(0.1 * np.random.random_sample(number_of_batches), noise)
-                augmented_inputs[:, :, i] += noise_rescaled
-            
-            # # cutoff 
-            
-            channel_to_cutoff = np.random.randint(0, 4)
-            begin_of_region = np.random.randint(0, len_batch - 50)
-            end_of_region = np.random.randint(begin_of_region + 50, len_batch)
-            augmented_inputs[np.int32(number_of_batches * np.random.random_sample(15)), begin_of_region:end_of_region + 1, channel_to_cutoff] = 0 #np.random.normal(mu, sigma, size=np.shape(augmented_inputs[:, :, i]))  #np.full(shape=np.shape(augmented_inputs[:, :, channel_to_cutoff]), fill_value = np.max(augmented_inputs[:, :, channel_to_cutoff]))
-                                          
-            return augmented_inputs
+            return self._augment(inputs)
         else:
             return inputs
+        
+
+    @tf.function
+    def _augment(self, inputs):
+
+        signal_shape = tf.shape(inputs)
+        batch_size = signal_shape[0]
+        quarter_batch_size = tf.cast(batch_size / 4, tf.int32)
+
+        inputs_float32 = tf.cast(inputs, dtype=np.float32)
+
+        indices_aug = tf.random.uniform(shape=[quarter_batch_size], minval=0, maxval=signal_shape[0], dtype=tf.int32)
+        indices_aug = tf.expand_dims(indices_aug, axis=-1) 
+        inputs_with_bl = add_baseline_wandering(tf.gather(inputs_float32, indices_aug[:, 0]), self.num_components, self.amplitude, self.fs)
+        augmented_inputs = tf.tensor_scatter_nd_update(
+            inputs_float32,
+            indices_aug,
+            inputs_with_bl
+        )
+
+        mu = 0.0
+        sigma = 1.0
+        amplitude = tf.random.uniform(shape=[], minval=0.01, maxval=0.08, dtype=tf.float32)
+        noise = amplitude * tf.random.normal(shape=(quarter_batch_size, signal_shape[1], signal_shape[2]), mean=mu, stddev=sigma)
+
+        indices = tf.random.uniform(shape=[quarter_batch_size], minval=0, maxval=signal_shape[0], dtype=tf.int32)
+        scattered_noise = augmented_inputs + tf.scatter_nd(
+            indices=tf.expand_dims(indices, axis=-1),
+            updates=noise,
+            shape=tf.shape(augmented_inputs)
+        )
+
+        # # Batch indices
+        batch_indices = tf.random.uniform(shape=[quarter_batch_size], minval=0, maxval=signal_shape[1]-1, dtype=tf.int32)
+
+        # Precompute all possible indices for the signal length
+        all_possible_indices = tf.range(signal_shape[1])
+
+        # Initialize the scatter_updates with the original tensor
+        scatter_updates = scattered_noise
+
+        # Function to update the tensor in a loop-compatible way
+        def update_tensor(i, scatter_updates):
+            # Randomly select channel, begin, and end of the region
+            channel_to_cutoff = tf.random.uniform(shape=[], minval=0, maxval=3, dtype=tf.int32)
+            begin_of_region = tf.random.uniform(shape=[], minval=0, maxval=signal_shape[1] - 50, dtype=tf.int32)
+            end_of_region = begin_of_region + tf.random.uniform(shape=[], minval=10, maxval=150, dtype=tf.int32)
+            
+            # Mask to select the indices within the range [begin_of_region, end_of_region)
+            mask = (all_possible_indices >= begin_of_region) & (all_possible_indices < end_of_region)
+            region_indices = tf.boolean_mask(all_possible_indices, mask)
+            
+            # Combine batch, region, and channel indices into a single tensor
+            batch_index = tf.fill([tf.size(region_indices)], batch_indices[i])
+            channel_index = tf.fill([tf.size(region_indices)], channel_to_cutoff)
+            indices_to_update = tf.stack([batch_index, region_indices, channel_index], axis=-1)
+            
+            # Generate updates (zeros in this case)
+            updates = tf.zeros([tf.size(region_indices)], dtype=tf.float32)
+            
+            # Apply scatter update to the cumulative tensor
+            scatter_updates = tf.tensor_scatter_nd_update(scatter_updates, indices_to_update, updates)
+            
+            return i + 1, scatter_updates
+
+        # Run the loop to update the TensorArray
+        _, scatter_updates = tf.while_loop(
+            cond=lambda i, _: tf.less(i, quarter_batch_size),
+            body=update_tensor,
+            loop_vars=[tf.constant(0), scatter_updates]
+        )
+
+        return scatter_updates
+
+    def compute_output_shape(self, input_shape):
+        return input_shape
 
     def get_config(self):
         config = super(CustomDataAugmentation, self).get_config()
-        config.update({'num_components': self.num_components, 'amplitude': self.amplitude, 'fs': self.fs})
+        config.update({
+            'num_components': self.num_components, 
+            'amplitude': self.amplitude, 
+            'fs': self.fs
+        })
         return config
-
 class Metric: 
     def __init__(self) -> None:
         pass
@@ -300,12 +359,12 @@ class ProposedAE:
     def linknet(self): 
         inputs = Input(batch_shape=self.input_shape)
 
-        inputs = CustomDataAugmentation(num_components=15, amplitude=1, fs=500)(inputs)
+        aug_inputs = CustomDataAugmentation(num_components=15, amplitude=0.1, fs=500)(inputs)
         
         
-        inputs = Dropout(0.5)(inputs)
+        #inputs = Dropout(0.5)(aug_inputs)
         # Encoder
-        encoder_block1 = self.encoder_block(inputs, num_filters=64)
+        encoder_block1 = self.encoder_block(aug_inputs, num_filters=64)
         print('Encoder Block 1', np.shape(encoder_block1))
         encoder_block1 = Dropout(0.2)(encoder_block1)
 

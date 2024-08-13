@@ -52,7 +52,7 @@ class CustomDataAugmentation(keras.layers.Layer):
         self.amplitude = amplitude
         self.fs = fs
 
-    def call(self, inputs, training=False):
+    def call(self, inputs, training=None):
         if training:
             return self._augment(inputs)
         else:
@@ -79,7 +79,8 @@ class CustomDataAugmentation(keras.layers.Layer):
 
         mu = 0.0
         sigma = 1.0
-        noise = 0.05 * tf.random.normal(shape=(quarter_batch_size, signal_shape[1], signal_shape[2]), mean=mu, stddev=sigma)
+        amplitude = tf.random.uniform(shape=[], minval=0.01, maxval=0.08, dtype=tf.float32)
+        noise = amplitude * tf.random.normal(shape=(quarter_batch_size, signal_shape[1], signal_shape[2]), mean=mu, stddev=sigma)
 
         indices = tf.random.uniform(shape=[quarter_batch_size], minval=0, maxval=signal_shape[0], dtype=tf.int32)
         scattered_noise = augmented_inputs + tf.scatter_nd(
@@ -88,8 +89,8 @@ class CustomDataAugmentation(keras.layers.Layer):
             shape=tf.shape(augmented_inputs)
         )
 
-        # Batch indices
-        batch_indices = tf.range(quarter_batch_size)
+        # # Batch indices
+        batch_indices = tf.random.uniform(shape=[quarter_batch_size], minval=0, maxval=signal_shape[1]-1, dtype=tf.int32)
 
         # Precompute all possible indices for the signal length
         all_possible_indices = tf.range(signal_shape[1])
@@ -102,7 +103,7 @@ class CustomDataAugmentation(keras.layers.Layer):
             # Randomly select channel, begin, and end of the region
             channel_to_cutoff = tf.random.uniform(shape=[], minval=0, maxval=3, dtype=tf.int32)
             begin_of_region = tf.random.uniform(shape=[], minval=0, maxval=signal_shape[1] - 50, dtype=tf.int32)
-            end_of_region = begin_of_region + tf.random.uniform(shape=[], minval=10, maxval=50, dtype=tf.int32)
+            end_of_region = begin_of_region + tf.random.uniform(shape=[], minval=10, maxval=150, dtype=tf.int32)
             
             # Mask to select the indices within the range [begin_of_region, end_of_region)
             mask = (all_possible_indices >= begin_of_region) & (all_possible_indices < end_of_region)
@@ -355,7 +356,7 @@ class ProposedAE:
             fs=500, 
         )(inputs)
 
-        # print('Input shape', np.shape(aug_inputs))
+        print('Input shape', np.shape(aug_inputs))
         
         #drop_inputs = Dropout(0.2)(aug_inputs)
         # Encoder
