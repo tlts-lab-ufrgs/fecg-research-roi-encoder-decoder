@@ -129,14 +129,7 @@ class ProposedAE:
         self.limit_epoch_for_lr_scheduler = limit_epoch_for_lr_scheduler
         
         pass
-
-    def lr_scheduler(self, epoch, lr):
-  
-        if epoch < self.limit_epoch_for_lr_scheduler:
-            return lr
-        else:
-            return np.float64(lr * np.exp(-0.1))
-    
+   
     @staticmethod
     def downsampling(inputs, num_filters, stride):
         
@@ -290,7 +283,7 @@ class ProposedAE:
                 # validation_data=(self.testing_data, self.ground_truth_testing),
                 shuffle=True, 
                 callbacks=[
-                    tf.keras.callbacks.LearningRateScheduler(self.lr_scheduler)
+                    lr_scheduler
                 ],
             )
         
