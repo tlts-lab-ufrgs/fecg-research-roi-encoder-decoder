@@ -4,7 +4,7 @@ import numpy as np
 
 def scheduler(epoch, lr):
   
-  if epoch < 10:
+  if epoch < 50:
     return lr
   else:
     return np.float64(lr * np.exp(-0.1))
