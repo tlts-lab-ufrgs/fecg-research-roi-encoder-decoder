@@ -6,8 +6,9 @@ import wfdb
 import pandas as pd
 import numpy as np
 import scipy.io
-from scipy.signal import resample
+from scipy.signal import butter, lfilter, freqz, filtfilt, resample
 
+from sklearn.preprocessing import scale
 from sklearn.decomposition import FastICA
 from sklearn.decomposition import PCA
 
@@ -29,7 +30,8 @@ class DataLoader:
             channels = 3,
             fecg_on_gt = True,
             overlap_data = False, 
-            type_of_mask = 'gaussian'
+            type_of_mask = 'gaussian', 
+            filters=False
         ):
 
      
@@ -50,7 +52,23 @@ class DataLoader:
 
         self.TYPE_OF_MASK = type_of_mask
 
+        self.FILTERS_ON = filters
+
         pass
+
+
+    def __butter_bandpass(self, lowcut, highcut, fs, order=3):
+        nyq = 0.5 * fs
+        low = lowcut / nyq
+        high = highcut / nyq
+        b, a = butter(order, [low, high], btype='band')
+
+        return b, a
+
+    def butter_bandpass_filter(self, data, lowcut, highcut, fs, order=3, axis=-1):
+        b, a = self.__butter_bandpass(lowcut, highcut, fs, order=order)
+        y = scale(filtfilt(b, a, data))
+        return y
 
     def data_load(self, leave_for_testing):
         
@@ -114,15 +132,14 @@ class DataLoader:
                 time_annotations = annotations.onset
             except:
                 continue
-        
-            
+                           
             if self.RESAMPLE_FS_RATIO != 1:
                 resampled_signal = np.zeros(shape=(5, int(np.shape(raw_data)[-1] / self.RESAMPLE_FS_RATIO)))
                 for j in range(5):  # because there are 5 channels in the data
                     resampled_signal[j, :] = resample(raw_data[j, :], int(np.shape(raw_data)[-1] / self.RESAMPLE_FS_RATIO))
             else:
                 resampled_signal = np.copy(raw_data)
-        
+    
                 
             # Generates masks
 
@@ -198,8 +215,7 @@ class DataLoader:
                 
                 chunked_fecg_real_data = np.copy(filedata[0, (batch): (batch + self.INTERVAL_SIZE)])
                 chunked_fecg_binary_data = np.copy(mask[(batch): (batch + self.INTERVAL_SIZE)])
-
-                
+               
                 # Data Normalization
 
                 chunked_data -= np.min(chunked_data) # to zero things
@@ -211,7 +227,28 @@ class DataLoader:
 
                 chunked_data *= (1 / max_abdominal) 
                 chunked_fecg_real_data *= (1 / max_fecg)
-                
+
+
+                if self.FILTERS_ON:
+                    for i in range(3):
+                        print(np.shape(chunked_data[:, i]))
+                        chunked_data[:, i] = self.butter_bandpass_filter(np.copy(chunked_data[:, i]), 1, 100, 1000 / self.RESAMPLE_FS_RATIO)
+                    chunked_fecg_real_data = self.butter_bandpass_filter(np.copy(chunked_fecg_real_data), 1, 100, 1000 / self.RESAMPLE_FS_RATIO)
+
+                    # Data Normalization
+
+                    chunked_data -= np.min(chunked_data) # to zero things
+                    chunked_fecg_real_data -= np.min(chunked_fecg_real_data) # to zero things
+                    
+                    max_abdominal = np.abs(np.max(chunked_data)) if np.abs(np.max(chunked_data)) != 0 else 1e-7
+                    max_fecg = np.abs(np.max(chunked_fecg_real_data)) if np.abs(np.max(chunked_fecg_real_data)) != 0 else 1e-7
+                    
+
+                    chunked_data *= (1 / max_abdominal) 
+                    chunked_fecg_real_data *= (1 / max_fecg)
+
+
+
                 chunked_fecg_data = np.array([
                     chunked_fecg_real_data, 
                     chunked_fecg_binary_data
@@ -312,10 +349,9 @@ class DataLoader:
 
             aecg_signals = aecg_signals.to_numpy()
             dfecg_signals = dfecg_signals.to_numpy()
-            
+           
             # Direct fECG from B2 pregancy dataset has fs = 1kHz and the abdominal part 500Hz, so we downsample
             # the fECG to 500Hz
-            resample_fs_ratio = 2 # 
 
             resampled_signal = np.zeros(shape=(int(DATA_LEN), 2))
             
@@ -363,6 +399,20 @@ class DataLoader:
                 fecg_seg -= np.min(fecg_seg)
                 max_fecg = np.abs(np.max(fecg_seg)) if np.abs(np.max(fecg_seg)) != 0 else 1e-7 
                 fecg_seg *= 1 / max_fecg
+
+                if self.FILTERS_ON:
+                    for i in range(3):
+                        aecg_seg[:, i]  = self.butter_bandpass_filter(np.copy(aecg_seg[:, i]), 1, 100, 1000 / self.RESAMPLE_FS_RATIO)
+                    fecg_seg = self.butter_bandpass_filter(np.copy(fecg_seg), 1, 100, 1000 / self.RESAMPLE_FS_RATIO)
+                
+                    # Normalize
+                    aecg_seg -= np.min(aecg_seg)
+                    max_aecg = np.abs(np.max(aecg_seg)) if np.abs(np.max(aecg_seg)) != 0 else 1e-7 
+                    aecg_seg *= 1 / max_aecg
+    
+                    fecg_seg -= np.min(fecg_seg)
+                    max_fecg = np.abs(np.max(fecg_seg)) if np.abs(np.max(fecg_seg)) != 0 else 1e-7 
+                    fecg_seg *= 1 / max_fecg
 
                 # print('normalized', np.shape(aecg_seg), np.shape(fecg_seg))
 
@@ -420,7 +470,8 @@ class DataLoader:
                 annotations = mne.read_annotations(test_file)
                 fR_annotations = np.copy(annotations.onset)
 
-                fR_annotations = np.multiply(fR_annotations, 1 / self.RESAMPLE_FS_RATIO).astype(np.int32)
+                # the annnotations are in seconds, so I multiply by the sapling frequency
+                fR_annotations = np.multiply(fR_annotations, 1000 / self.RESAMPLE_FS_RATIO).astype(np.int32)
 
 
         return fR_annotations
