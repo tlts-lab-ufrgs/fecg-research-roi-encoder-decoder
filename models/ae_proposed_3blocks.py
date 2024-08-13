@@ -69,7 +69,7 @@ class CustomDataAugmentation(keras.layers.Layer):
 
         signal_shape = tf.shape(inputs)
         batch_size = signal_shape[0]
-        quarter_batch_size = tf.cast(batch_size / 4, tf.int32)
+        quarter_batch_size = tf.cast(batch_size / 2, tf.int32)
 
         inputs_float32 = tf.cast(inputs, dtype=np.float32)
 
