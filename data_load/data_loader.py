@@ -231,7 +231,7 @@ class DataLoader:
 
                 if self.FILTERS_ON:
                     for i in range(3):
-                        print(np.shape(chunked_data[:, i]))
+                        # print(np.shape(chunked_data[:, i]))
                         chunked_data[:, i] = self.butter_bandpass_filter(np.copy(chunked_data[:, i]), 1, 100, 1000 / self.RESAMPLE_FS_RATIO)
                     chunked_fecg_real_data = self.butter_bandpass_filter(np.copy(chunked_fecg_real_data), 1, 100, 1000 / self.RESAMPLE_FS_RATIO)
 
