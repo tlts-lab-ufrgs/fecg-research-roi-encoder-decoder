@@ -19,7 +19,7 @@ from tensorflow.keras.layers import (
 )
 
 from utils.lr_scheduler import callback as lr_scheduler
-from custom_data_aug import CustomDataAugmentation
+from models.custom_data_aug import CustomDataAugmentation
 
 class Metric: 
     def __init__(self) -> None:

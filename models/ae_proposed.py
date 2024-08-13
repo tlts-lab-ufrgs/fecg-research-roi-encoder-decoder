@@ -21,7 +21,7 @@ from tensorflow.keras.layers import (
     Dropout
 )
 
-from custom_data_aug import CustomDataAugmentation
+from models.custom_data_aug import CustomDataAugmentation
 
 class Metric: 
     def __init__(self) -> None:
