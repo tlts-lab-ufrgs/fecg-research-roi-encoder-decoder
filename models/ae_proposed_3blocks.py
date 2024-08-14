@@ -234,12 +234,12 @@ class ProposedAE:
     def linknet(self): 
         inputs = Input(batch_shape=self.input_shape)
 
-        aug_inputs = CustomDataAugmentation(num_components=15, amplitude=0.1, fs=500)(inputs)
+        #aug_inputs = CustomDataAugmentation(num_components=15, amplitude=0.2, fs=500)(inputs)
         
         
         #inputs = Dropout(0.5)(inputs)
         # Encoder
-        encoder_block1 = self.encoder_block(aug_inputs, num_filters=64)
+        encoder_block1 = self.encoder_block(inputs, num_filters=64)
         print('Encoder Block 1', np.shape(encoder_block1))
         encoder_block1 = Dropout(0.2)(encoder_block1)
 

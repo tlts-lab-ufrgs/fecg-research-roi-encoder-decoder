@@ -229,10 +229,12 @@ class ProposedAE:
     def linknet(self): 
         inputs = Input(batch_shape=self.input_shape)
 
-        aug_inputs = CustomDataAugmentation(num_components=15, amplitude=0.1, fs=500)(inputs)
+        aug_inputs = CustomDataAugmentation(
+            num_components=15, 
+            amplitude=0.2, 
+            fs=500
+        )(inputs)
         
-        
-        #inputs = Dropout(0.5)(aug_inputs)
         # Encoder
         encoder_block1 = self.encoder_block(aug_inputs, num_filters=64)
         print('Encoder Block 1', np.shape(encoder_block1))
@@ -256,7 +258,7 @@ class ProposedAE:
 
         self.model = tf.keras.Model(inputs=inputs, outputs=outputs, name='linknet')
         
-        # self.model.load_weights('/home/julia/Documents/research/backbone/backbone-b2-dataset-2.weights.h5', skip_mismatch=True, by_name=True)
+        #self.model.load_weights('/home/julia/Documents/research/backbone/backbone-b2-dataset-FIXED.weights.h5', skip_mismatch=True)
         
         return
 
