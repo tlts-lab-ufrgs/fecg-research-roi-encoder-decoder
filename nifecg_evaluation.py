@@ -23,26 +23,30 @@ from ecgdetectors import panPeakDetect, Detectors
 
 from utils.stats_fn import mean_confidence_interval
 
+from models.ae_proposed import ProposedAE
+
+from data_load.data_loader import DataLoader
+
 #%%
 
-model = tf.keras.models.load_model(
-    '/home/julia/Documents/fECG_research/research_dev/autoencoder_with_mask/final_model_3ch/', 
-    custom_objects = {
-        'mse_mask': Metric.mse_mask,
-        'mse_signal': Metric.mse_signal, 
-        'loss': Loss.loss, 
-        'lr': lr_scheduler
-    }
-)
+# model = tf.keras.models.load_model(
+#     '/home/julia/Documents/fECG_research/research_dev/autoencoder_with_mask/final_model_3ch/', 
+#     custom_objects = {
+#         'mse_mask': Metric.mse_mask,
+#         'mse_signal': Metric.mse_signal, 
+#         'loss': Loss.loss, 
+#         'lr': lr_scheduler
+#     }
+# )
 
 #%% constants
 
 # Range in learning rate
 UPPER_LIM_LR = 0.0001
 
-SAMPLING_FREQ = 1000
+SAMPLING_FREQ = 500
 
-RESAMPLE_FREQ_RATIO = 1
+RESAMPLE_FREQ_RATIO = 2
 
 # batch size
 BATCH_SIZE=4
@@ -51,7 +55,7 @@ BATCH_SIZE=4
 FILES_TO_READ = [154, 192, 244, 274, 290, 323, 368, 444, 597, 733, 746, 811, 826, 906,]
 
 RESULTS_PATH = "/home/julia/Documents/fECG_research/research_dev/autoencoder_with_mask/results/"
-DATA_PATH =  "/home/julia/Documents/fECG_research/datasets/non-invasive-fetal-ecg-database-1.0.0/"
+DATA_PATH =  "/home/julia/Documents/research/datasets/non-invasive-fetal-ecg-database-1.0.0/"
 
 CHANNELS = 3
 LEN_BATCH = 512
@@ -67,11 +71,48 @@ LEN_BATCH = int(512 / RESAMPLING_FREQUENCY_RATIO)
 LIMT_GAUS = int(50 / RESAMPLING_FREQUENCY_RATIO)
 QRS_DURATION = 0.1  # seconds, max
 QRS_DURATION_STEP = int(50 / RESAMPLING_FREQUENCY_RATIO)
-MIN_QRS_DISTANCE = int(300 / RESAMPLING_FREQUENCY_RATIO) # fs = 1000Hz
-MASK_MIN_HEIGHT = 0.8
+MIN_QRS_DISTANCE = int(200 / RESAMPLING_FREQUENCY_RATIO) # fs = 1000Hz
+MASK_MIN_HEIGHT = 0.7
 
+MODEL_INPUT_SHAPE = (BATCH_SIZE, LEN_BATCH, CHANNELS)
 LIMIT = int(300000 / RESAMPLING_FREQUENCY_RATIO)# - LEN_BATCH
 
+#%%
+
+# data_loader = DataLoader(
+#     DATA_PATH, 
+#     LEN_BATCH, 
+#     RESAMPLE_FREQ_RATIO, 
+#     'edf', 
+#     QRS_DURATION_STEP, 
+#     QRS_DURATION, 
+#     load_training_set=True,
+#     load_testing_set=False,
+#     type_of_mask='gaussian', 
+#     # filters=True
+# )
+
+#%%
+# training_data, _ = data_loader.data_load(0)
+
+model = ProposedAE(
+    MODEL_INPUT_SHAPE, 
+    BATCH_SIZE, 
+    UPPER_LIM_LR, 
+    0.3, 
+    0.1, 
+    0.6, 
+    training_data=[], 
+    ground_truth=[],
+    testing_data=None, 
+    ground_truth_testing=None, 
+    epochs=100
+)
+
+model.linknet()
+
+#%%
+model.model.load_weights('/home/julia/Documents/research/sprint_1/rev1_weights/weights.h5')
 #%%
 
 def mae_function(y_true, y_pred):
@@ -110,7 +151,7 @@ for file in filenames:
         QRS_DURATION, 
         QRS_DURATION_STEP,
         type_of_file='edf', 
-        resample_fs=1, 
+        resample_fs=RESAMPLE_FREQ_RATIO, 
         channels=CHANNELS, 
         fecg_on_gt=False
     )
@@ -123,7 +164,7 @@ for file in filenames:
 
     # Model prediction
 
-    predict = model.predict(aECG)
+    predict = model.model.predict(aECG)
     
     # ----------------- fECG extraction assessment
     

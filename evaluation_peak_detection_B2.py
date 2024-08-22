@@ -32,20 +32,9 @@ from scipy.signal import find_peaks
 from data_load.data_loader import DataLoader
 # from utils.mean_confidence_interval import mean_confidence_interval
 
-#%% definition for fitting
-       
-    
-def mse_function(y_true, y_pred):
-    
-    mse_value = np.mean(
-        np.power((y_true - y_pred), 2)
-    )
-    
-    return mse_value
-
 #%% constants 
 
-FILES_TO_CALCULATE = '2024-08-12-MASK_gaussian-DECODER_BY_convtransp-ED_rev0-500hz-B2-3CH-DA_complete_half-SCH-LR_0.0001'
+FILES_TO_CALCULATE = '2024-08-15-MASK_gaussian-DECODER_BY_convtranspose-ED_rev0-B2-500hz-LR_0.0001'
 
 # [w_mask, w_signal]
 WEIGHTS_TO_EVAL = [
@@ -101,6 +90,7 @@ for w in WEIGHTS_TO_EVAL:
 
     for j in range(NUMBER_OF_FILES):
 
+        concat = np.empty(shape=0)
         print(j)        
         dir = f'{FILES_TO_CALCULATE}-W_MASK_{w[0]}-W_SIG_{w[1]}-LEFT_{j}'
         
@@ -123,6 +113,7 @@ for w in WEIGHTS_TO_EVAL:
             prediction_data['combined-binary'] = prediction_data['signal'] * prediction_data['binary_mask']
             # mean, std = norm.fit(prediction_data['mask'])
             
+            concat = np.concatenate([concat, prediction_data['signal']])
             # Fit the double Gaussian to the data
             
             peaks_proposed = find_peaks(
@@ -143,7 +134,7 @@ for w in WEIGHTS_TO_EVAL:
                 qrs_detection.append(int(p + prediction_index * LEN_BATCH))
 
                 
-            r_peaks_combined = detectors.pan_tompkins_detector(prediction_data['combined-binary'].values)
+            r_peaks_combined = detectors.pan_tompkins_detector(prediction_data['mask'].values)
             r_peaks_signal = detectors.pan_tompkins_detector(prediction_data['signal'].values)
 
             # r_peaks_combined = panPeakDetect(prediction_data['combined-binary'].values, SAML)
@@ -155,15 +146,24 @@ for w in WEIGHTS_TO_EVAL:
             for r in r_peaks_signal:
                 pan_tom_qrs_detection_signal.append(r  + prediction_index * LEN_BATCH)
         
+
+        # test passing all the signal to the pan and tompikins algo
+        pt_detection = detectors.pan_tompkins_detector(concat)
+
+
         this_weights_results[f'{dir}-proposed'] = qrs_detection
         this_weights_results[f'{dir}-pan-combined'] = pan_tom_qrs_detection
-        this_weights_results[f'{dir}-pan-signal'] = pan_tom_qrs_detection_signal
+        this_weights_results[f'{dir}-pan-signal'] = pt_detection
 
 #%% calculate metrics
 
 f1_store = []
 recall_store = []
 precision_store = []
+
+f1_store_pt = []
+recall_store_pt = []
+precision_store_pt = []
 
 print('file_id\tf1\tf1_pt\trecall\trecall_pt\tprecision\tprecision_pt\acc')
 
@@ -197,16 +197,14 @@ for j in range(NUMBER_OF_FILES):
             upper_limit = peak + LIMT_GAUS
             
             peak_found = np.where(
-                (np.array(this_weights_results[f'{dir}-proposed']) >= peak - LIMT_GAUS) & 
-                (np.array(this_weights_results[f'{dir}-proposed']) <= peak + LIMT_GAUS)
+                (np.array(this_weights_results[f'{dir}-proposed']) >= lower_limit) & 
+                (np.array(this_weights_results[f'{dir}-proposed']) <= upper_limit)
             )
             
             peak_found_pt = np.where(
-                (np.array(this_weights_results[f'{dir}-pan-signal']) >= peak - LIMT_GAUS) & 
-                (np.array(this_weights_results[f'{dir}-pan-signal']) <= peak + LIMT_GAUS)
+                (np.array(this_weights_results[f'{dir}-pan-signal']) >= lower_limit) & 
+                (np.array(this_weights_results[f'{dir}-pan-signal']) <= upper_limit)
             )
-            
-            # print(len(peak_found_pt))
             
             if len(peak_found[0]) > 0:
                 for k in peak_found[0]:
@@ -222,6 +220,7 @@ for j in range(NUMBER_OF_FILES):
                     true_positive_peaks_pt.append(k)
                 true_positive_pt += 1
             else:
+                # print('False negative', j, peak, peak / LEN_BATCH)
                 false_negative_pt += 1
     
     for peak_predicted in this_weights_results[f'{dir}-proposed']:
@@ -258,10 +257,13 @@ for j in range(NUMBER_OF_FILES):
         true_positive + (false_negative)
     )
     
-    precision = true_positive / (
-         true_positive + (false_positive)
-    )
-    
+    try:
+        precision = true_positive / (
+             true_positive + (false_positive)
+        )
+    except:
+        precision = 0
+
     f1_pt = true_positive_pt / (
         true_positive_pt + 0.5 * (false_positive_pt + false_negative_pt)
     )
@@ -285,6 +287,10 @@ for j in range(NUMBER_OF_FILES):
     f1_store.append(f1)
     recall_store.append(recall)
     precision_store.append(precision)
+
+    f1_store_pt.append(f1_pt)
+    recall_store_pt.append(recall_pt)
+    precision_store_pt.append(precision_pt)
     
     print(
         '\t'.join(
@@ -322,4 +328,22 @@ print(mean_confidence_interval(f1_store, name='f1-score'))
 print(mean_confidence_interval(recall_store, name='recall'))
 print(mean_confidence_interval(precision_store, name='precision'))
 
+# %%
+
+
+print(mean_confidence_interval(f1_store_pt, name='f1-score'))
+print(mean_confidence_interval(recall_store_pt, name='recall'))
+print(mean_confidence_interval(precision_store_pt, name='precision'))
+#%%
+
+print('Without the problematic')
+
+f1_store_pt.pop(5)
+recall_store_pt.pop(5)
+precision_store_pt.pop(5)
+
+
+print(mean_confidence_interval(f1_store_pt, name='f1-score'))
+print(mean_confidence_interval(recall_store_pt, name='recall'))
+print(mean_confidence_interval(precision_store_pt, name='precision'))
 # %%

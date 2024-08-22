@@ -6,13 +6,16 @@ import pandas as pd
 import tensorflow as tf
 from numba import cuda
 
-from data_load.load_leave_one_out import data_loader
-from models.ae_proposed_rev0 import ProposedAE
+from data_load.data_loader import DataLoader
+from models.ae_proposed_rev0_upsampling import ProposedAE
 
 #%% constants
 
+# sa,mpling frequency
+RESAMPLE_FREQ_RATIO = 2
+
 # Range in learning rate
-UPPER_LIM_LR = 0.001
+UPPER_LIM_LR = 0.0001
 
 # batch size
 BATCH_SIZE=4
@@ -21,13 +24,15 @@ BATCH_SIZE=4
 TOTAL_FILES = 5
 
 RESULTS_PATH = "/home/julia/Documents/research/sprint_1/results/"
-DATA_PATH =  "/home/julia/Documents/research/datasets/abdominal-and-direct-fetal-ecg-database-1.0.0/"
-SAVE_MODEL_PATH = "/home/julia/Documents/research/sprint_1/model_rev2/"
+#DATA_PATH =  "/home/julia/Documents/research/datasets/abdominal-and-direct-fetal-ecg-database-1.0.0/"
+DATA_PATH = "/home/julia/Documents/research/datasets/b2-records/B2_Labour_dataset/"
+SAVE_MODEL_PATH = "/home/julia/Documents/research/sprint_1/model_rev1/"
+TYPE_OF_FILE='txt'
 
 CHANNELS = 3
-LEN_BATCH = 512
+LEN_BATCH = int(512 / RESAMPLE_FREQ_RATIO)
 QRS_DURATION = 0.1  # seconds, max
-QRS_DURATION_STEP = 50
+QRS_DURATION_STEP = int(50 / RESAMPLE_FREQ_RATIO)
 
 MODEL_INPUT_SHAPE = (BATCH_SIZE, LEN_BATCH, CHANNELS)
 
@@ -37,15 +42,21 @@ W_SIGNAL = 0.1
 W_COMBINED = 1 - W_MASK - W_SIGNAL
 #%%
 
-training_data, testing_data = data_loader(
-                    DATA_PATH, 
-                    LEN_BATCH, 
-                    QRS_DURATION, 
-                    QRS_DURATION_STEP,
-                    whole_dataset_training=True,
-                    leave_for_testing=0,
-                    type_of_file='edf'
-            )
+data_loader = DataLoader(
+    DATA_PATH, 
+    LEN_BATCH, 
+    RESAMPLE_FREQ_RATIO, 
+    TYPE_OF_FILE, 
+    QRS_DURATION_STEP, 
+    QRS_DURATION, 
+    load_training_set=True,
+    load_testing_set=False,
+    type_of_mask='gaussian', 
+    # filters=True
+)
+
+#%%
+training_data, _ = data_loader.data_load(0)
 
 model = ProposedAE(
     MODEL_INPUT_SHAPE, 
@@ -58,7 +69,7 @@ model = ProposedAE(
     ground_truth=training_data[1],
     testing_data=None, 
     ground_truth_testing=None, 
-    epochs=150
+    epochs=100
 )
 
 #%%
@@ -66,7 +77,10 @@ model = ProposedAE(
 history, _, _ = model.fit_and_evaluate()
 
 #%%
-model.save(SAVE_MODEL_PATH)
+#model.model.export(SAVE_MODEL_PATH)
+
+
+model.model.save('/home/julia/Documents/research/sprint_1/rev2_weights/weights.h5')
 
 #%%
 

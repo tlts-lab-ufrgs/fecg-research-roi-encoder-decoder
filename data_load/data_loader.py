@@ -31,7 +31,7 @@ class DataLoader:
             fecg_on_gt = True,
             overlap_data = False, 
             type_of_mask = 'gaussian', 
-            filters=False
+            filters=False, 
         ):
 
      
@@ -108,6 +108,31 @@ class DataLoader:
                     testing_data = self.load_adfecg_dataset(
                         [test_file]
                     )
+
+        else: # in case of using the whole dataset to train the model:
+            match self.FILE_EXTENSION:
+
+                case 'txt':
+                    filenames = glob.glob(self.DATA_PATH + 'B*')
+
+                    if self.LOAD_TRAINING_SET:
+
+                        training_data = self.load_b2_dataset(
+                            filenames,
+                        )
+
+                    testing_data = None
+
+                case 'edf':
+                    filenames = glob.glob(self.DATA_PATH + "*." + self.FILE_EXTENSION) 
+
+                    if self.LOAD_TRAINING_SET:
+
+                        training_data = self.load_adfecg_dataset(
+                            filenames, 
+                        )
+
+                    testing_data = None
 
 
         return training_data, testing_data

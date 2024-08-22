@@ -4,24 +4,24 @@ import os
 import numpy as np
 import pandas as pd
 import tensorflow as tf
-from keras import backend as K
 from numba import cuda
 import matplotlib.pyplot as plt
 from datetime import datetime
 
-from data_load.load_leave_one_out import data_loader
-from models.ae_proposed import ProposedAE
+from data_load.data_loader import DataLoader
+from models.ae_proposed_3blocks import ProposedAE
 
 #%% To run other experiments please change this below
 
 # CHANGEBLE VARIABLES ---------------------------------------------------------------------------------------------- 
-TOTAL_FILES = 5
+TOTAL_FILES = 12
 CHANNELS = 3
 RESAMPLE_FREQ_RATIO = 2
 HAVE_DIRECT_FECG = True
 
 RESULTS_PATH = "/home/julia/Documents/research/sprint_1/results/ablation_extended/"
-DATA_PATH =  "/home/julia/Documents/research/datasets/abdominal-and-direct-fetal-ecg-database-1.0.0/"
+DATA_PATH = "/home/julia/Documents/research/datasets/b2-records/B2_Labour_dataset/"
+# DATA_PATH =  "/home/julia/Documents/research/datasets/abdominal-and-direct-fetal-ecg-database-1.0.0/"
 # -------------------------------------------------------------------------------------------------------------------
 
 #%% Model constants
@@ -34,55 +34,44 @@ QRS_DURATION_STEP = int(50 / RESAMPLE_FREQ_RATIO)
 
 MODEL_INPUT_SHAPE = (BATCH_SIZE, LEN_BATCH, CHANNELS)
 
+TYPE_OF_FILE = 'txt'
+
 w_mask = 0.3
 w_signal = 0.1
 w_combined = 1 - w_mask - w_signal
 
 type_of_mask = 'gaussian'
-decoder_type = 'convtransp'
+decoder_type = 'contranspose'
+
+NUMBER_OF_EPOCHS = 100
 
 
 today = datetime.today().strftime('%Y-%m-%d')
 
 #%% If you want to loop in weight parameters
 
-
-# for w_mask in np.arange(0.8, 1.1, 0.1):
-        
-#     w_signal_upper_bound = 1 - w_mask
-    
-#     w_mask=0.5
-
-#     for w_signal in np.arange(0.5, w_signal_upper_bound + 0.1, 0.1):
-
-# # for i in [
-# #     [0, 0.7], [0.2, 0.2], [0.1, 0.1], [0.3, 0.4]
-# # ]:
-    
-#     # w_mask = i[0]
-#     # w_signal = i[1]
+data_loader = DataLoader(
+    DATA_PATH, 
+    LEN_BATCH, 
+    RESAMPLE_FREQ_RATIO, 
+    TYPE_OF_FILE, 
+    QRS_DURATION_STEP, 
+    QRS_DURATION, 
+    load_training_set=True,
+    type_of_mask=type_of_mask, 
+    # filters=True
+)
 
 #%% Loop in files to run cross-validation 
 
-for i in range(0, TOTAL_FILES, 1):
+for i in  range(0, TOTAL_FILES):
     
-    prefix_id = f'{today}-MASK_{type_of_mask}-DECODER_BY_{decoder_type}-500hz-backcone-rev1_da_changed-LR_{UPPER_LIM_LR}-W_MASK_{w_mask}-W_SIG_{w_signal}-LEFT_{i}'
+    prefix_id = f'{today}-MASK_{type_of_mask}-DECODER_BY_{decoder_type}-ED_rev2-B2-500hz-LR_{UPPER_LIM_LR}-W_MASK_{w_mask}-W_SIG_{w_signal}-LEFT_{i}'
     
     print(prefix_id)
-    
-    training_data, testing_data = data_loader(
-            DATA_PATH, 
-            LEN_BATCH, 
-            QRS_DURATION, 
-            QRS_DURATION_STEP,
-            leave_for_testing=i,
-            type_of_file='edf', 
-            resample_fs=RESAMPLE_FREQ_RATIO, 
-            channels=CHANNELS, 
-            fecg_on_gt=HAVE_DIRECT_FECG, 
-            type_of_mask = type_of_mask
-    )
-    
+
+    training_data, testing_data = data_loader.data_load(i)
+       
     model = ProposedAE(
         MODEL_INPUT_SHAPE, 
         BATCH_SIZE, 
@@ -92,9 +81,9 @@ for i in range(0, TOTAL_FILES, 1):
         w_combined, 
         training_data=training_data[0], 
         ground_truth=training_data[1],
-        testing_data=testing_data[0], 
-        ground_truth_testing=testing_data[1], 
-        epochs=100
+        testing_data=testing_data[0][0::1], 
+        ground_truth_testing=testing_data[1][0::1], 
+        epochs=NUMBER_OF_EPOCHS
     )
 
     history, testing_metrics, predict = model.fit_and_evaluate()
@@ -108,6 +97,7 @@ for i in range(0, TOTAL_FILES, 1):
 
     this_dir = os.path.join(RESULTS_PATH, prefix_id)
 
+    #model.save(this_dir + '-model')
 
     os.mkdir(this_dir)
 
@@ -124,5 +114,4 @@ for i in range(0, TOTAL_FILES, 1):
     del history
     del predict  
 
-
-# %%
+#%%

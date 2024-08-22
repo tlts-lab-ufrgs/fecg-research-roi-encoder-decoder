@@ -22,7 +22,7 @@ from utils.segments_to_remove_adfecg import to_remove
 # Testing results
 
 RESULTS_PATH = "/home/julia/Documents/research/sprint_1/results/ablation_extended/"
-ABLATION_TEST = '2024-08-12-MASK_gaussian-DECODER_BY_convtransp-ED_rev0-500hz-ABCD-3CH-DA_with_noise-LR_0.0001-W_MASK_0.3-W_SIG_0.1'
+ABLATION_TEST = '2024-08-13-MASK_gaussian-DECODER_BY_convtransp-ED_rev0-500hz-testelr-LR_0.0001-W_MASK_0.3-W_SIG_0.1'
 SAMPLING_FREQ = 500
 TYPE_OF_MASK = 'gaussian'
 
@@ -32,7 +32,7 @@ TYPE_OF_MASK = 'gaussian'
 DATA_PATH =  "/home/julia/Documents/research/datasets/abdominal-and-direct-fetal-ecg-database-1.0.0/"
 # DATA_PATH = "/home/julia/Documents/research/datasets/b2-records/B2_Labour_dataset/"
 TYPE_OF_FILE = 'edf'
-NUMBER_OF_FILES = 5
+NUMBER_OF_FILES = 1
 
 
 
@@ -126,53 +126,53 @@ for file_number in range(NUMBER_OF_FILES):
 
         # # Plot to visualize:
 
-        if prediction_files.index(prediction) in random_index_for_plot:
+        # if prediction_files.index(prediction) in random_index_for_plot:
 
-            fig, ax = plt.subplots()
+            # fig, ax = plt.subplots()
 
-            ax.set_title(f'File number: {file_number}, segment index: {index}')
-
-            ax.plot(
-                testing_data[1][index, :, 0], 
-                label='Ground truth signal', 
-                )
+            # ax.set_title(f'File number: {file_number}, segment index: {index}')
 
             # ax.plot(
-            #     qrs_signals[index, :], 
+            #     testing_data[1][index, :, 0], 
             #     label='Ground truth signal', 
             #     )
-            
-            
-            ax.plot(prediction_data['signal'], label='Predicted Signal')
-            
-            ax1 = ax.twinx()
-            
-            ax1.plot(
-                testing_data[1][index, :, 1], 
-                label='Ground truth RoI', 
-                color='green'
-                )
-            ax1.plot(prediction_data['mask'], label='Predicted RoI', color='purple')
-        
-            
-            ax.set_xlabel('Time steps')
-            ax.set_ylabel('fECG normalized')
-            ax1.set_ylabel('RoI signal')
-            
-            #Shrink current axis's height by 10% on the bottom
-            box = ax.get_position()
-            ax.set_position([box.x0, box.y0 + box.height * 0.1,
-                            box.width, box.height * 0.9])
 
-            #Put a legend below current axis
-            ax.legend(loc='upper center', bbox_to_anchor=(0.1, -0.15),
-                    fancybox=True, shadow=True, ncol=2)
+            # # ax.plot(
+            # #     qrs_signals[index, :], 
+            # #     label='Ground truth signal', 
+            # #     )
             
-            ax1.legend(loc='upper center', bbox_to_anchor=(0.9, -0.15),
-                    fancybox=True, shadow=True, ncol=2)
+            
+            # ax.plot(prediction_data['signal'], label='Predicted Signal')
+            
+            # ax1 = ax.twinx()
+            
+            # ax1.plot(
+            #     testing_data[1][index, :, 1], 
+            #     label='Ground truth RoI', 
+            #     color='green'
+            #     )
+            # ax1.plot(prediction_data['mask'], label='Predicted RoI', color='purple')
+        
+            
+            # ax.set_xlabel('Time steps')
+            # ax.set_ylabel('fECG normalized')
+            # ax1.set_ylabel('RoI signal')
+            
+            # #Shrink current axis's height by 10% on the bottom
+            # box = ax.get_position()
+            # ax.set_position([box.x0, box.y0 + box.height * 0.1,
+            #                 box.width, box.height * 0.9])
+
+            # #Put a legend below current axis
+            # ax.legend(loc='upper center', bbox_to_anchor=(0.1, -0.15),
+            #         fancybox=True, shadow=True, ncol=2)
+            
+            # ax1.legend(loc='upper center', bbox_to_anchor=(0.9, -0.15),
+            #         fancybox=True, shadow=True, ncol=2)
             
         
-            ax.grid()
+            # ax.grid()
 
 
         # Calc MAE values:
@@ -224,6 +224,52 @@ for file_number in range(NUMBER_OF_FILES):
 
             if len(candidates) == 0:
                 false_negatives += 1
+                print(fR_peaks_pred)
+                fig, ax = plt.subplots()
+
+                ax.set_title(f'File number: {file_number}, segment index: {index}, this peak {this_peak}')
+
+                ax.plot(
+                    testing_data[1][index, :, 0], 
+                    label='Ground truth signal', 
+                    )
+
+                # ax.plot(
+                #     qrs_signals[index, :], 
+                #     label='Ground truth signal', 
+                #     )
+                
+                
+                ax.plot(prediction_data['signal'], label='Predicted Signal')
+                
+                ax1 = ax.twinx()
+                
+                ax1.plot(
+                    testing_data[1][index, :, 1], 
+                    label='Ground truth RoI', 
+                    color='green'
+                    )
+                ax1.plot(prediction_data['mask'], label='Predicted RoI', color='purple')
+            
+                
+                ax.set_xlabel('Time steps')
+                ax.set_ylabel('fECG normalized')
+                ax1.set_ylabel('RoI signal')
+                
+                #Shrink current axis's height by 10% on the bottom
+                box = ax.get_position()
+                ax.set_position([box.x0, box.y0 + box.height * 0.1,
+                                box.width, box.height * 0.9])
+
+                #Put a legend below current axis
+                ax.legend(loc='upper center', bbox_to_anchor=(0.1, -0.15),
+                        fancybox=True, shadow=True, ncol=2)
+                
+                ax1.legend(loc='upper center', bbox_to_anchor=(0.9, -0.15),
+                        fancybox=True, shadow=True, ncol=2)
+                
+            
+                ax.grid()
             else:
                 true_positives += 1
 

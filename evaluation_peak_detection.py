@@ -45,12 +45,12 @@ def mse_function(y_true, y_pred):
 
 #%% constants 
 
-FILES_TO_CALCULATE = '2024-08-10-MASK_gaussian-DECODER_BY_convtransp-ED_rev0-500hz-ABCD-3CH-WT_DA-LR_0.0001'
+FILES_TO_CALCULATE = '2024-08-20-MASK_none-DECODER_BY_contranspose-ED_rev0-ABCD-wt_RoI-500hz-LR_0.0001'
 # results/010324-3CH-VAL_LOSS-MOD_DA6-LR_0.0001-W_MASK_0.3-W_SIG_0.1-LEFT_2
 
 # [w_mask, w_signal]
 WEIGHTS_TO_EVAL = [
-    [0.3, 0.1]
+    [0.0,1]
 ] 
 
 SAMPLING_FREQ = 500
@@ -65,15 +65,15 @@ NUMBER_OF_FILES = 5
 
 # All constants are defined based on a 1000Hz fs
 LEN_BATCH = int(512 / RESAMPLING_FREQUENCY_RATIO)
-LIMT_GAUS = int(30 / RESAMPLING_FREQUENCY_RATIO)
+LIMT_GAUS = int(50 / RESAMPLING_FREQUENCY_RATIO)
 QRS_DURATION = 0.1  # seconds, max
 QRS_DURATION_STEP = int(50 / RESAMPLING_FREQUENCY_RATIO)
 MIN_QRS_DISTANCE = int(200 / RESAMPLING_FREQUENCY_RATIO) # fs = 1000Hz
 MASK_MIN_HEIGHT = 0.7
 
-LIMIT = int(300000 / RESAMPLING_FREQUENCY_RATIO)# - LEN_BATCH
+LIMIT = int(300000 / RESAMPLING_FREQUENCY_RATIO) - LEN_BATCH
 
-type_of_mask = 'none'
+type_of_mask = 'gaussian'
 
 to_remove = [
     40,
@@ -252,10 +252,10 @@ for w in WEIGHTS_TO_EVAL:
                 lower_limit_mask = 0 if p - QRS_DURATION_STEP < 0 else p - QRS_DURATION_STEP
                 upper_limit_mask = LEN_BATCH if p + QRS_DURATION_STEP > LEN_BATCH else p + QRS_DURATION_STEP
 
-                roi_predicted = prediction_data['mask'][lower_limit_mask : upper_limit_mask]
+                roi_predicted = prediction_data['signal'][lower_limit_mask : upper_limit_mask]
                 
-                if roi_predicted.diff().max() < 0.5:
-                    qrs_detection.append(int(p + prediction_index * LEN_BATCH))
+                #if roi_predicted.diff().max() < 0.5:
+                qrs_detection.append(int(p + prediction_index * LEN_BATCH))
 
                 
             this_real = fecg_real_data[f'{j}'][prediction_index * LEN_BATCH : prediction_index * LEN_BATCH + LEN_BATCH]
@@ -276,80 +276,24 @@ for w in WEIGHTS_TO_EVAL:
         this_weights_results[f'{dir}-pan-combined'] = pan_tom_qrs_detection
         this_weights_results[f'{dir}-pan-signal'] = pan_tom_qrs_detection_signal
 
-#%%
-
-
-print('id\tf1_pt\tacc_pt')
-
-for i in range(5):
-    
-    r_peaks = detectors.pan_tompkins_detector(fecg_real_data[f'{i}'])
-    
-    true_positive = 0
-    false_positive = 0
-    false_negative = 0
-    total_peaks = 0
-    
-    true_positive_pt = 0
-    false_positive_pt = 0
-    false_negative_pt = 0
-
-    for peak in annotations_data[f'{i}'] * 1000:
-        
-        if peak <= LIMIT:
-            
-            total_peaks += 1
-        
-        
-            lower_limit = peak - 30
-            upper_limit = peak + 30
-            
-            
-            peak_found_pt = np.where(
-                (np.array(r_peaks >= lower_limit)) & 
-                (np.array(r_peaks <= upper_limit))
-            )
-            
-                
-            if len(peak_found_pt[0]) > 0:
-            
-                true_positive_pt += 1
-            else:
-                false_negative_pt += 1
-        
-
-
-    f1_pt = true_positive_pt / (
-        true_positive_pt + 0.5 * (false_positive_pt + false_negative_pt)
-    )
-    
-    
-    acc_pt = true_positive_pt / (
-        (total_peaks)
-    )
-    
-    print(
-        '\t'.join(
-            [
-                f'{i}', 
-                f'{f1_pt}', 
-                f'{acc_pt}'
-            ]
-        )
-    )
-
-
 #%% calculate metrics
 
 f1_store = []
 recall_store = []
 precision_store = []
 
+f1_store_pt = []
+recall_store_pt = []
+precision_store_pt = []
+
+
 print('file_id\tf1\tf1_pt\trecall\trecall_pt\tprecision\tprecision_pt\acc')
 
 for j in range(NUMBER_OF_FILES):
     
     dir = f'{FILES_TO_CALCULATE}-W_MASK_{w[0]}-W_SIG_{w[1]}-LEFT_{j}'
+
+    # print(dir)
     
     true_positive = 0
     false_positive = 0
@@ -366,7 +310,7 @@ for j in range(NUMBER_OF_FILES):
         
         if j == 4 and np.floor(peak / LEN_BATCH) in to_remove:
             continue
-        if j == 4:
+        elif j == 4:
             
             segments = np.where(
                 to_remove <= np.floor(peak / LEN_BATCH)
@@ -399,6 +343,7 @@ for j in range(NUMBER_OF_FILES):
                     
                 true_positive += 1
             else:
+                # print('False negative', peak, peak / LEN_BATCH)
                 false_negative += 1
                 
             if len(peak_found_pt[0]) > 0:
@@ -430,7 +375,7 @@ for j in range(NUMBER_OF_FILES):
                 )[0]
 
                 if len(possible_ann) == 0:
-
+                    # print('False positive', peak_predicted, peak_predicted / LEN_BATCH)
                     false_positive += 1
             
             else: 
@@ -440,7 +385,7 @@ for j in range(NUMBER_OF_FILES):
                 )[0]
 
                 if len(possible_ann) == 0:
-
+                    # print('False positive', peak_predicted, peak_predicted / LEN_BATCH)
                     false_positive += 1
                 
     for peak_predicted in this_weights_results[f'{dir}-pan-signal']:
@@ -515,6 +460,10 @@ for j in range(NUMBER_OF_FILES):
     f1_store.append(f1)
     recall_store.append(recall)
     precision_store.append(precision)
+
+    f1_store_pt.append(f1_pt)
+    recall_store_pt.append(recall_pt)
+    precision_store_pt.append(precision_pt)
     
     print(
         '\t'.join(
@@ -539,5 +488,10 @@ from utils.stats_fn import mean_confidence_interval
 print(mean_confidence_interval(f1_store, name='f1-score'))
 print(mean_confidence_interval(recall_store, name='recall'))
 print(mean_confidence_interval(precision_store, name='precision'))
+
+# %%
+print(mean_confidence_interval(f1_store_pt, name='f1_pt-score'))
+print(mean_confidence_interval(recall_store_pt, name='recall_pt'))
+print(mean_confidence_interval(precision_store_pt, name='precision_pt'))
 
 # %%
