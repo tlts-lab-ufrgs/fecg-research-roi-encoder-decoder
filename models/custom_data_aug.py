@@ -73,7 +73,7 @@ class CustomDataAugmentation(keras.layers.Layer):
         )
 
         # # Batch indices
-        batch_indices = tf.random.uniform(shape=[quarter_batch_size], minval=0, maxval=signal_shape[1]-1, dtype=tf.int32)
+        batch_indices = tf.random.uniform(shape=[quarter_batch_size], minval=0, maxval=batch_size, dtype=tf.int32)
 
         # Precompute all possible indices for the signal length
         all_possible_indices = tf.range(signal_shape[1])
