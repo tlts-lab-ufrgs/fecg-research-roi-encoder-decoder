@@ -6,7 +6,7 @@ import wfdb
 import pandas as pd
 import numpy as np
 import scipy.io
-from scipy.signal import butter, lfilter, freqz, filtfilt, resample
+from scipy.signal import butter, lfilter, freqz, filtfilt, resample, iirnotch
 
 from sklearn.preprocessing import scale
 from sklearn.decomposition import FastICA
@@ -65,9 +65,22 @@ class DataLoader:
 
         return b, a
 
+    def notch_filter(self, freq, fs, quality_factor=30):
+        """Designs a notch filter to remove power-line interference."""
+        nyq = 0.5 * fs
+        notch_freq = freq / nyq
+        b, a = iirnotch(notch_freq, quality_factor)
+        return b, a
+
+
     def butter_bandpass_filter(self, data, lowcut, highcut, fs, order=3, axis=-1):
         b, a = self.__butter_bandpass(lowcut, highcut, fs, order=order)
-        y = scale(filtfilt(b, a, data))
+        y = scale(filtfilt(b, a, data, axis=0))
+
+        # Notch filter (50 Hz)
+        b_notch, a_notch = self.notch_filter(50, fs)
+        y = filtfilt(b_notch, a_notch, y)
+
         return y
 
     def data_load(self, leave_for_testing):
@@ -402,8 +415,11 @@ class DataLoader:
                     qrs_region = np.arange(begin_of_interval, end_of_interval, step=1)
                     mask[qrs_region] = gaussian(qrs_region, r_peak, self.QRS_INTERVAL/2)
 
-
             
+            if self.FILTERS_ON:
+                a = self.butter_bandpass_filter(np.copy(dfecg_signals[:, 0]), 1, 100, 1000 / self.RESAMPLE_FS_RATIO)
+            
+
 
             # reshape
 
@@ -414,8 +430,11 @@ class DataLoader:
                 # print('linha inicial', np.shape(aECG_data), np.shape(fECG_data))
                 
                 aecg_seg = np.copy(aecg_signals[batch : batch + self.INTERVAL_SIZE, 0:3])
-                fecg_seg = np.copy(dfecg_signals[batch : batch + self.INTERVAL_SIZE, 0])          
-            
+                fecg_seg = np.copy(dfecg_signals[batch : batch + self.INTERVAL_SIZE, 0]) 
+
+                if self.FILTERS_ON:         
+                    fecg_seg = a[batch : batch + self.INTERVAL_SIZE]
+
                 # Normalize
                 aecg_seg -= np.min(aecg_seg)
                 max_aecg = np.abs(np.max(aecg_seg)) if np.abs(np.max(aecg_seg)) != 0 else 1e-7 
@@ -424,20 +443,6 @@ class DataLoader:
                 fecg_seg -= np.min(fecg_seg)
                 max_fecg = np.abs(np.max(fecg_seg)) if np.abs(np.max(fecg_seg)) != 0 else 1e-7 
                 fecg_seg *= 1 / max_fecg
-
-                if self.FILTERS_ON:
-                    for i in range(3):
-                        aecg_seg[:, i]  = self.butter_bandpass_filter(np.copy(aecg_seg[:, i]), 1, 100, 1000 / self.RESAMPLE_FS_RATIO)
-                    fecg_seg = self.butter_bandpass_filter(np.copy(fecg_seg), 1, 100, 1000 / self.RESAMPLE_FS_RATIO)
-                
-                    # Normalize
-                    aecg_seg -= np.min(aecg_seg)
-                    max_aecg = np.abs(np.max(aecg_seg)) if np.abs(np.max(aecg_seg)) != 0 else 1e-7 
-                    aecg_seg *= 1 / max_aecg
-    
-                    fecg_seg -= np.min(fecg_seg)
-                    max_fecg = np.abs(np.max(fecg_seg)) if np.abs(np.max(fecg_seg)) != 0 else 1e-7 
-                    fecg_seg *= 1 / max_fecg
 
                 # print('normalized', np.shape(aecg_seg), np.shape(fecg_seg))
 
