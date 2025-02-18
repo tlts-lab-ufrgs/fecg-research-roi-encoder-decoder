@@ -34,7 +34,11 @@ from data_load.data_loader import DataLoader
 
 #%% constants 
 
-FILES_TO_CALCULATE = '2024-08-15-MASK_gaussian-DECODER_BY_convtranspose-ED_rev0-B2-500hz-LR_0.0001'
+FILES_TO_CALCULATE = '2024-08-12-MASK_gaussian-DECODER_BY_convtransp-ED_rev0-500hz-B2-3CH-DA_complete_half-SCH-LR_0.0001'
+
+# '2024-08-15-MASK_gaussian-DECODER_BY_convtranspose-ED_rev0-B2-500hz-LR_0.0001'
+
+# '2024-08-12-MASK_gaussian-DECODER_BY_convtransp-ED_rev0-500hz-B2-3CH-DA_complete_half-SCH-LR_0.0001'
 
 # [w_mask, w_signal]
 WEIGHTS_TO_EVAL = [
@@ -53,7 +57,7 @@ NUMBER_OF_FILES = 12
 
 # All constants are defined based on a 1000Hz fs
 LEN_BATCH = int(512 / RESAMPLING_FREQUENCY_RATIO)
-LIMT_GAUS = int(50 / RESAMPLING_FREQUENCY_RATIO)
+LIMT_GAUS = int(30 / RESAMPLING_FREQUENCY_RATIO)
 QRS_DURATION = 0.1  # seconds, max
 QRS_DURATION_STEP = int(50 / RESAMPLING_FREQUENCY_RATIO)
 MIN_QRS_DISTANCE = int(200 / RESAMPLING_FREQUENCY_RATIO) # fs = 1000Hz
@@ -74,6 +78,7 @@ data_loader = DataLoader(
     QRS_DURATION, 
     load_training_set=False,
     type_of_mask=type_of_mask, 
+    filters=True
 )
 
 #%% concat results of the same dir
@@ -205,7 +210,7 @@ for j in range(NUMBER_OF_FILES):
                 (np.array(this_weights_results[f'{dir}-pan-signal']) >= lower_limit) & 
                 (np.array(this_weights_results[f'{dir}-pan-signal']) <= upper_limit)
             )
-            
+
             if len(peak_found[0]) > 0:
                 for k in peak_found[0]:
                     true_positive_peaks.append(k)

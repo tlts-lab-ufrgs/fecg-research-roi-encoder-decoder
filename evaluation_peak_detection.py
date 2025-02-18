@@ -45,12 +45,12 @@ def mse_function(y_true, y_pred):
 
 #%% constants 
 
-FILES_TO_CALCULATE = '2024-08-20-MASK_none-DECODER_BY_contranspose-ED_rev0-ABCD-wt_RoI-500hz-LR_0.0001'
+FILES_TO_CALCULATE = '2025-02-11-MASK_gaussian-DECODER_BY_contranspose-200Hz-ABCD-LR_0.0001'
 # results/010324-3CH-VAL_LOSS-MOD_DA6-LR_0.0001-W_MASK_0.3-W_SIG_0.1-LEFT_2
 
 # [w_mask, w_signal]
 WEIGHTS_TO_EVAL = [
-    [0.0,1]
+    [0.3,0.1]
 ] 
 
 SAMPLING_FREQ = 500
@@ -65,7 +65,7 @@ NUMBER_OF_FILES = 5
 
 # All constants are defined based on a 1000Hz fs
 LEN_BATCH = int(512 / RESAMPLING_FREQUENCY_RATIO)
-LIMT_GAUS = int(50 / RESAMPLING_FREQUENCY_RATIO)
+LIMT_GAUS = int(30 / RESAMPLING_FREQUENCY_RATIO)
 QRS_DURATION = 0.1  # seconds, max
 QRS_DURATION_STEP = int(50 / RESAMPLING_FREQUENCY_RATIO)
 MIN_QRS_DISTANCE = int(200 / RESAMPLING_FREQUENCY_RATIO) # fs = 1000Hz
@@ -75,89 +75,91 @@ LIMIT = int(300000 / RESAMPLING_FREQUENCY_RATIO) - LEN_BATCH
 
 type_of_mask = 'gaussian'
 
-to_remove = [
-    40,
-    41,
-    42,
-    43,
-    44,
-    45,
-    46,
-    47,
-    48,
-    49,
-    50,
-    51,
-    52,
-    56,
-    57,
-    58,
-    59,
-    60,
-    177,
-    179,
-    180,
-    181,
-    182,
-    183,
-    184,
-    185,
-    186,
-    187,
-    188,
-    189,
-    190,
-    197,
-    198,
-    199,
-    200,
-    201,
-    202,
-    203,
-    204,
-    205,
-    206,
-    207,
-    311,
-    312,
-    313,
-    314,
-    315,
-    316,
-    317,
-    318,
-    319,
-    320,
-    335, 
-    336, 
-    338,
-    339,
-    340,
-    341,
-    343,
-    365,
-    371,
-    393,
-    394,
-    395,
-    396,
-    397,
-    398,
-    399,
-    400,
-    401,
-    402,
-    403,
-    404,
-    405,
-    406,
-    407,
-    408,
-    409,
-    410,
-    411,
-    412,
-]
+to_remove = []
+
+# to_remove = [
+#     40,
+#     41,
+#     42,
+#     43,
+#     44,
+#     45,
+#     46,
+#     47,
+#     48,
+#     49,
+#     50,
+#     51,
+#     52,
+#     56,
+#     57,
+#     58,
+#     59,
+#     60,
+#     177,
+#     179,
+#     180,
+#     181,
+#     182,
+#     183,
+#     184,
+#     185,
+#     186,
+#     187,
+#     188,
+#     189,
+#     190,
+#     197,
+#     198,
+#     199,
+#     200,
+#     201,
+#     202,
+#     203,
+#     204,
+#     205,
+#     206,
+#     207,
+#     311,
+#     312,
+#     313,
+#     314,
+#     315,
+#     316,
+#     317,
+#     318,
+#     319,
+#     320,
+#     335, 
+#     336, 
+#     338,
+#     339,
+#     340,
+#     341,
+#     343,
+#     365,
+#     371,
+#     393,
+#     394,
+#     395,
+#     396,
+#     397,
+#     398,
+#     399,
+#     400,
+#     401,
+#     402,
+#     403,
+#     404,
+#     405,
+#     406,
+#     407,
+#     408,
+#     409,
+#     410,
+#     411,
+#     412,
+# ]
 
 
 #%% data load
@@ -425,17 +427,19 @@ for j in range(NUMBER_OF_FILES):
 
 
 
-    f1 = true_positive / (
-        true_positive + 0.5 * (false_positive + false_negative)
-    )
+    # f1 = true_positive / (
+    #     true_positive + 0.5 * (false_positive + false_negative)
+    # )
     
-    recall = true_positive / (
-        true_positive + (false_negative)
-    )
+    # recall = true_positive / (
+    #     true_positive + (false_negative)
+    # )
     
-    precision = true_positive / (
-         true_positive + (false_positive)
-    )
+    # precision = true_positive / (
+    #      true_positive + (false_positive)
+    # )
+
+
     
     f1_pt = true_positive_pt / (
         true_positive_pt + 0.5 * (false_positive_pt + false_negative_pt)
@@ -449,33 +453,33 @@ for j in range(NUMBER_OF_FILES):
         true_positive_pt + (false_positive_pt)
     )
     
-    acc = true_positive / (
-        (total_peaks + false_positive)
-    )
+    # acc = true_positive / (
+        # (total_peaks + false_positive)
+    # )
     
-    acc_pt = true_positive_pt / (
-        (total_peaks + false_positive)
-    )
+    # acc_pt = true_positive_pt / (
+    #     (total_peaks + false_positive)
+    # )
     
-    f1_store.append(f1)
-    recall_store.append(recall)
-    precision_store.append(precision)
+    f1_store.append(0)
+    recall_store.append(0)
+    precision_store.append(0)
 
-    f1_store_pt.append(f1_pt)
-    recall_store_pt.append(recall_pt)
-    precision_store_pt.append(precision_pt)
+    f1_store_pt.append(0)
+    recall_store_pt.append(0)
+    precision_store_pt.append(0)
     
     print(
         '\t'.join(
             [
                 f'{j}', 
-                f'{f1}', 
+                f'{0}', 
                 f'{f1_pt}', 
-                f'{recall}', 
+                f'{0}', 
                 f'{recall_pt}', 
-                f'{precision}', 
+                f'{0}', 
                 f'{precision_pt}', 
-                f'{acc}'
+                f'{0}'
             ]
         )
     )
