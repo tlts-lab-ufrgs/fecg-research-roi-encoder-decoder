@@ -318,32 +318,33 @@ class ProposedAE:
 
             # Save this model and then apply quantization
 
-            self.model.save(self.saved_model_dir + "/model")
+            #self.model.save(self.saved_model_dir + "/model/model.keras")
 
-            converter = tf.lite.TFLiteConverter.from_saved_model(self.saved_model_dir + "/model")
+            converter = tf.lite.TFLiteConverter.from_keras_model(self.model)
             converter.optimizations = [tf.lite.Optimize.DEFAULT]
-            converter.target_spec.supported_types = [tf.float16]
+            # converter.target_spec.supported_types = [tf.float16]
             tflite_quant_model = converter.convert()
 
             # Save 8bit model
 
-            with open(self.saved_model_dir + '/qz_model/model.tflite', 'wb') as f:
+            with open(self.saved_model_dir + '/model.tflite', 'wb') as f:
                 f.write(tflite_quant_model)
 
 
-            quantizated_model = TFLiteModel(self.saved_model_dir + '/qz_model/model.tflite')
-            
-            test = quantizated_model.evaluate(self.testing_data, self.ground_truth_testing)
-            
-            start = time.time()
+            # quantizated_model = TFLiteModel(self.saved_model_dir + '/qz_model/model.tflite')
+            # 
+            # test = None
+            #test = quantizated_model.evaluate(self.testing_data, self.ground_truth_testing)
+            # 
+            # start = time.time()
+# 
+            # prediction = quantizated_model.predict(self.testing_data.astype(np.float32))
+# 
+            # end = time.time()
 
-            prediction = quantizated_model.predict(self.testing_data)
-
-            end = time.time()
-
-            print(f'Predict duration for {np.shape(self.testing_data)} is {end-start} seconds ')
+            #print(f'Predict duration for {np.shape(self.testing_data)} is {end-start} seconds ')
             
-            return history, test, prediction
+            return history, None, None
     
     def save(self, path_dir):
         
