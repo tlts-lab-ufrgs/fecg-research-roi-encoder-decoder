@@ -4,6 +4,7 @@ import time
 import numpy as np
 import tensorflow as tf
 import keras
+from scipy.stats import entropy
 
 from utils.training_patience import callback as patience_callback
 from utils.lr_scheduler import callback as lr_scheduler
@@ -57,6 +58,20 @@ class Loss:
         self.w_combined = w_combined
         
         pass
+
+    def compute_entropy(self, y_true, y_pred):
+        # Convert zeros to NaN
+        mask_pred = tf.where(y_pred == 0, np.nan, y_pred)
+        mask_true = tf.where(y_true == 0, np.nan, y_true)
+
+        # Define NumPy function for entropy computation
+        def entropy_np(mask_true, mask_pred):
+            return entropy(pk=mask_true, qk=mask_pred, nan_policy='omit') * 10
+
+        # Use tf.numpy_function to execute NumPy-based entropy computation
+        entropy_result = tf.numpy_function(entropy_np, [mask_true, mask_pred], tf.float32)
+        
+        return entropy_result
     
     def loss(self, y_true, y_pred):
         
@@ -76,6 +91,7 @@ class Loss:
         
         # y_pred_combined = y1_pred_combined + y2_pred_combined
 
+        # entropy_gt = self.compute_entropy(y_true[:, :, 1], y_pred[:, :, 1])
         
         loss_combined = (
             tf.keras.losses.logcosh(y_true_mod, y2_pred_combined) + 
@@ -83,6 +99,19 @@ class Loss:
             # tf.keras.losses.logcosh(y_true_mod, y_combined)
         )
 
+        # # Replace zeros with NaN
+        # nan_value = tf.constant(np.nan, dtype=tf.float32)
+
+        # mask_pred = tf.where(y_pred[:, :, 1] == 0, nan_value, y_pred[:, :, 1])
+        # mask_true = tf.where(y_true[:, :, 1] == 0, nan_value, y_true[:, :, 1])
+
+        #     # Define NumPy function for entropy computation
+        # def entropy_np(mask_true, mask_pred):
+        #     return entropy(pk=mask_true, qk=mask_pred, nan_policy='omit') * 10
+
+        # # Use tf.numpy_function to execute NumPy-based entropy computation
+        # entropy_result = tf.numpy_function(entropy_np, [mask_true, mask_pred], tf.float32)
+    
         # loss_combined = tf.keras.losses.logcosh(y_true_mod, y_combined)
         
         loss_signal = tf.keras.losses.logcosh(y_true[:, :, 0], y_pred[:, :, 0]) 
