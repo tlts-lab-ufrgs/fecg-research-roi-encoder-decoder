@@ -23,7 +23,7 @@ from ecgdetectors import panPeakDetect, Detectors
 
 from utils.stats_fn import mean_confidence_interval
 
-from models.ae_proposed import ProposedAE
+from models.ae_proposed_rev0 import ProposedAE
 
 from data_load.data_loader import DataLoader
 
@@ -46,8 +46,6 @@ UPPER_LIM_LR = 0.0001
 
 SAMPLING_FREQ = 500
 
-RESAMPLE_FREQ_RATIO = 2
-
 # batch size
 BATCH_SIZE=4
 
@@ -58,17 +56,14 @@ RESULTS_PATH = "/home/julia/Documents/fECG_research/research_dev/autoencoder_wit
 DATA_PATH =  "/home/julia/Documents/research/datasets/non-invasive-fetal-ecg-database-1.0.0/"
 
 CHANNELS = 3
-LEN_BATCH = 512
-QRS_DURATION = 0.1  # seconds, max
-QRS_DURATION_STEP = 50
 
-RESAMPLING_FREQUENCY_RATIO = 1
+RESAMPLING_FREQUENCY_RATIO = int(1000 / SAMPLING_FREQ)
 
 detectors = Detectors(SAMPLING_FREQ) # fs = frequencia de sampling
 
 
 LEN_BATCH = int(512 / RESAMPLING_FREQUENCY_RATIO)
-LIMT_GAUS = int(50 / RESAMPLING_FREQUENCY_RATIO)
+LIMT_GAUS = int(30 / RESAMPLING_FREQUENCY_RATIO)
 QRS_DURATION = 0.1  # seconds, max
 QRS_DURATION_STEP = int(50 / RESAMPLING_FREQUENCY_RATIO)
 MIN_QRS_DISTANCE = int(200 / RESAMPLING_FREQUENCY_RATIO) # fs = 1000Hz
@@ -112,7 +107,7 @@ model = ProposedAE(
 model.linknet()
 
 #%%
-model.model.load_weights('/home/julia/Documents/research/sprint_1/rev1_weights/weights.h5')
+model.model.load_weights('/home/julia/Documents/research/sprint_1/rev0_weights/weights.h5')
 #%%
 
 def mae_function(y_true, y_pred):
@@ -151,7 +146,7 @@ for file in filenames:
         QRS_DURATION, 
         QRS_DURATION_STEP,
         type_of_file='edf', 
-        resample_fs=RESAMPLE_FREQ_RATIO, 
+        resample_fs=RESAMPLING_FREQUENCY_RATIO, 
         channels=CHANNELS, 
         fecg_on_gt=False
     )
@@ -192,6 +187,50 @@ for file in filenames:
         mse_combined_partial += mae_function(
             roi_true_signal, 
             roi_predicted_signal)
+        
+
+        if i in [10,20,30,40]:
+            fig, ax = plt.subplots()
+            
+            ax.set_title(file)
+
+            ax.plot(
+                fECG[i, :, 0], 
+                label='Ground truth signal', 
+                )
+            
+            
+            ax.plot( predict[i, :, 0], label='Predicted Signal')
+            
+            ax1 = ax.twinx()
+            
+            ax1.plot(
+                fECG[i, :, 1], 
+                label='Ground truth RoI', 
+                color='green'
+                )
+            ax1.plot(predict[i, :, 1], label='Predicted RoI', color='purple')
+        
+            
+            ax.set_xlabel('Time steps')
+            ax.set_ylabel('fECG normalized')
+            ax1.set_ylabel('RoI signal')
+            
+            # Shrink current axis's height by 10% on the bottom
+            box = ax.get_position()
+            ax.set_position([box.x0, box.y0 + box.height * 0.1,
+                            box.width, box.height * 0.9])
+
+            # Put a legend below current axis
+            ax.legend(loc='upper center', bbox_to_anchor=(0.1, -0.15),
+                    fancybox=True, shadow=True, ncol=2)
+            
+            ax1.legend(loc='upper center', bbox_to_anchor=(0.9, -0.15),
+                    fancybox=True, shadow=True, ncol=2)
+            
+            
+            
+            ax.grid()
             
     global_mae_signal.append(mse_signal_partial / np.shape(predict)[0])
     global_mae_mask.append(mse_mask_partial / np.shape(predict)[0])
@@ -370,4 +409,26 @@ print(mean_confidence_interval(global_mae_roi))
 #     ax.plot(fECG[index, :, 1], label='fecg')
     
 #     ax.legend()
+# %%
+
+# for file in filenames:
+
+# aECG, fECG =  data_resizer(    
+#     [file],
+#     256, 
+#     QRS_DURATION, 
+#     50,
+#     type_of_file='edf', 
+#     resample_fs=2, 
+#     channels=CHANNELS, 
+#     fecg_on_gt=False
+# )
+
+# for i in range(np.shape(fECG)[0]):
+    
+#     concat = np.concatenate([concat, fECG[i, :, 0]])
+
+# r_peaks_signal = detectors.pan_tompkins_detector(concat)
+
+
 # %%

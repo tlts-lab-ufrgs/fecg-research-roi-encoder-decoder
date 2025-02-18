@@ -17,7 +17,7 @@ from sklearn.decomposition import FastICA
 
 from utils.stats_fn import mean_confidence_interval
 
-from models.ae_proposed import ProposedAE
+from models.ae_proposed_rev0 import ProposedAE
 
 #%% Load model
 
@@ -78,7 +78,7 @@ model = ProposedAE(
 
 model.linknet()
 
-model.model.load_weights('/home/julia/Documents/research/sprint_1/rev1_weights/weights.h5')
+model.model.load_weights('/home/julia/Documents/research/sprint_1/rev0_weights/weights.h5')
 
 
 to_not_use = [
