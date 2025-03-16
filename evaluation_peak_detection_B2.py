@@ -34,7 +34,9 @@ from data_load.data_loader import DataLoader
 
 #%% constants 
 
-FILES_TO_CALCULATE = '2024-08-12-MASK_gaussian-DECODER_BY_convtransp-ED_rev0-500hz-B2-3CH-DA_complete_half-SCH-LR_0.0001'
+FILES_TO_CALCULATE = "2024-08-12-MASK_gaussian-DECODER_BY_convtransp-ED_rev0-500hz-B2-3CH-DA_complete_half-SCH-LR_0.0001"
+
+#FILES_TO_CALCULATE = '2024-08-12-MASK_gaussian-DECODER_BY_convtransp-ED_rev0-500hz-B2-3CH-DA_complete_half-SCH-LR_0.0001'
 
 # '2024-08-15-MASK_gaussian-DECODER_BY_convtranspose-ED_rev0-B2-500hz-LR_0.0001'
 

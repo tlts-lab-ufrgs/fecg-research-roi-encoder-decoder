@@ -23,21 +23,9 @@ from ecgdetectors import panPeakDetect, Detectors
 
 from utils.stats_fn import mean_confidence_interval
 
-from models.ae_proposed_rev0 import ProposedAE
+from models.ae_proposed import ProposedAE
 
 from data_load.data_loader import DataLoader
-
-#%%
-
-# model = tf.keras.models.load_model(
-#     '/home/julia/Documents/fECG_research/research_dev/autoencoder_with_mask/final_model_3ch/', 
-#     custom_objects = {
-#         'mse_mask': Metric.mse_mask,
-#         'mse_signal': Metric.mse_signal, 
-#         'loss': Loss.loss, 
-#         'lr': lr_scheduler
-#     }
-# )
 
 #%% constants
 
@@ -107,7 +95,7 @@ model = ProposedAE(
 model.linknet()
 
 #%%
-model.model.load_weights('/home/julia/Documents/research/sprint_1/rev0_weights/weights.h5')
+model.model.load_weights('/home/julia/Documents/research/sprint_1/rev1_weights/weights.h5')
 #%%
 
 def mae_function(y_true, y_pred):
@@ -121,7 +109,7 @@ def mae_function(y_true, y_pred):
 #%%
 
 filenames = glob.glob(DATA_PATH + '*.edf')
-# filenames = [i for i in filenames if int(i.split('ecgca')[-1].replace('.edf', '')) in FILES_TO_READ ]
+filenames = [i for i in filenames if int(i.split('ecgca')[-1].replace('.edf', '')) in FILES_TO_READ ]
 
 
 false_positive_peaks_per_file = []
@@ -431,4 +419,17 @@ print(mean_confidence_interval(global_mae_roi))
 # r_peaks_signal = detectors.pan_tompkins_detector(concat)
 
 
+# %%
+
+for file in filenames:
+    name_f = file.replace('/home/julia/Documents/research/datasets/non-invasive-fetal-ecg-database-1.0.0/ecgca', '')
+    number = name_f.replace('.edf', '')
+
+    index_number = filenames.index(file)
+
+    precision_mod = round(global_precision[index_number] * 100, 2)
+    recall_mod    = round(global_recall[index_number] * 100, 2)
+    f1_mod        = round(global_f1_score[index_number] * 100, 2)
+
+    print(f'{number} & {precision_mod} & {recall_mod} & {f1_mod} \\\\')
 # %%

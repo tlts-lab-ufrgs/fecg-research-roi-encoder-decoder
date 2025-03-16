@@ -1,0 +1,317 @@
+#%%
+
+import time
+import numpy as np
+import tensorflow as tf
+import keras
+from scipy.stats import entropy
+
+from utils.training_patience import callback as patience_callback
+from utils.lr_scheduler import callback as lr_scheduler
+
+from tensorflow.keras.layers import (
+    Input, 
+    Conv1D, 
+    BatchNormalization, 
+    Activation, 
+    MaxPooling1D, 
+    Add, 
+    Conv1DTranspose, 
+    UpSampling1D, 
+    Reshape,
+    Dropout
+)
+
+from models.custom_data_aug import CustomDataAugmentation
+
+class Metric: 
+    def __init__(self) -> None:
+        pass
+    
+    @staticmethod
+    def mse_mask(y_true, y_pred):
+
+        error_mask = y_true[:, :, 1] - y_pred[:, :, 1]
+        
+        loss_mask = tf.reduce_mean(tf.math.square(error_mask))
+        
+        return loss_mask
+    
+    def mse_signal(y_true, y_pred):
+
+        error = y_true[:, :, 0] - y_pred[:, :, 0]
+        
+        loss = tf.reduce_mean(tf.math.square(error))
+        
+        return loss
+    
+    def mse_combined(): 
+        
+        return
+    
+class Loss:
+    
+    def __init__(self, w_mask, w_signal, w_combined):
+        
+        self.w_signal = w_signal
+        self.w_mask = w_mask
+        self.w_combined = w_combined
+        
+        pass
+
+    def compute_entropy(self, y_true, y_pred):
+        # Convert zeros to NaN
+        mask_pred = tf.where(y_pred == 0, np.nan, y_pred)
+        mask_true = tf.where(y_true == 0, np.nan, y_true)
+
+        # Define NumPy function for entropy computation
+        def entropy_np(mask_true, mask_pred):
+            return entropy(pk=mask_true, qk=mask_pred, nan_policy='omit') * 10
+
+        # Use tf.numpy_function to execute NumPy-based entropy computation
+        entropy_result = tf.numpy_function(entropy_np, [mask_true, mask_pred], tf.float32)
+        
+        return entropy_result
+    
+    def loss(self, y_true, y_pred):
+        
+        y_true_mod = tf.multiply(y_true[:, :, 0], y_true[:, :, 1])
+        
+        # # corrupt the output to make it work as a DAE
+
+        # mu = 0
+        # sigma = 1
+        # noise = 0.1 * np.random.normal(mu, sigma, size=np.shape(y_pred))
+        # y_pred += noise
+
+        y2_pred_combined = tf.multiply(y_pred[:, :, 0], y_true[:, :, 1])
+        y1_pred_combined = tf.multiply(y_true[:, :, 0], y_pred[:, :, 1])
+
+        y_combined =  tf.multiply(y_pred[:, :, 0], y_pred[:, :, 1])
+        
+        # y_pred_combined = y1_pred_combined + y2_pred_combined
+
+        # entropy_gt = self.compute_entropy(y_true[:, :, 1], y_pred[:, :, 1])
+        
+        loss_combined = (
+            tf.keras.losses.logcosh(y_true_mod, y2_pred_combined) + 
+            tf.keras.losses.logcosh(y_true_mod, y1_pred_combined)
+            # tf.keras.losses.logcosh(y_true_mod, y_combined)
+        )
+
+        # # Replace zeros with NaN
+        # nan_value = tf.constant(np.nan, dtype=tf.float32)
+
+        # mask_pred = tf.where(y_pred[:, :, 1] == 0, nan_value, y_pred[:, :, 1])
+        # mask_true = tf.where(y_true[:, :, 1] == 0, nan_value, y_true[:, :, 1])
+
+        #     # Define NumPy function for entropy computation
+        # def entropy_np(mask_true, mask_pred):
+        #     return entropy(pk=mask_true, qk=mask_pred, nan_policy='omit') * 10
+
+        # # Use tf.numpy_function to execute NumPy-based entropy computation
+        # entropy_result = tf.numpy_function(entropy_np, [mask_true, mask_pred], tf.float32)
+    
+        # loss_combined = tf.keras.losses.logcosh(y_true_mod, y_combined)
+        
+        loss_signal = tf.keras.losses.logcosh(y_true[:, :, 0], y_pred[:, :, 0]) 
+        loss_mask_mse = tf.keras.losses.logcosh(y_true[:, :, 1], y_pred[:, :, 1]) 
+        
+        loss = self.w_mask * loss_mask_mse + self.w_combined * loss_combined + self.w_signal * loss_signal
+
+        return loss
+            
+        
+class ProposedAE:
+    
+    def __init__(self, 
+        input_shape, 
+        batch_size, 
+        init_lr, 
+        w_mask, 
+        w_signal, 
+        w_combined, 
+        training_data, 
+        ground_truth, 
+        testing_data, 
+        ground_truth_testing, 
+        epochs = 250, 
+        epochs_in_patience = 15, 
+        limit_epoch_for_lr_scheduler = 10
+    ):
+        
+        self.batch_size = batch_size
+        self.input_shape = input_shape
+        self.init_lr = init_lr
+        self.total_epochs = epochs
+        self.epochs_in_patience = epochs_in_patience
+        
+        self.w_signal = w_signal
+        self.w_mask = w_mask
+        self.w_combined = w_combined
+        
+        self.training_data = training_data
+        self.ground_truth = ground_truth
+        self.testing_data = testing_data
+        self.ground_truth_testing = ground_truth_testing
+
+        self.limit_epoch_for_lr_scheduler = limit_epoch_for_lr_scheduler
+        
+        pass
+   
+    @staticmethod
+    def downsampling(inputs, num_filters, stride):
+        
+        x = Conv1D(num_filters, kernel_size=1, strides=stride, padding='same')(inputs)
+        x = BatchNormalization()(x)
+        
+        return x
+
+    @staticmethod
+    def conv_block(inputs, num_filters, kernel_size=3, stride=1, padding='same', activation='relu'):
+        x = Conv1D(
+                num_filters, 
+                kernel_size, 
+                strides=stride, 
+                padding=padding, 
+                # activity_regularizer=tf.keras.regularizers.L2(l2=1e-5)       
+            )(inputs)
+        x = Activation(activation)(x)
+        return x
+
+    def encoder_block(self, inputs, num_filters):
+        
+        x1 = self.conv_block(inputs, num_filters, stride=2)
+        x1 = self.conv_block(x1, num_filters)
+    
+        reshaped_inputs = self.downsampling(inputs, num_filters, stride=2)
+        
+        print('Reshaped inputs', np.shape(reshaped_inputs))
+        
+        x = Add()([x1, reshaped_inputs])
+        
+        x2 = self.conv_block(x, num_filters)
+        x2 = self.conv_block(x2, num_filters)
+        
+        x = Add()([x1, x2])
+        return x
+        
+    def decoder_block(self, inputs, skip_connection, filters_num, kernel_size=3, stride=2, output_padding=1, activation="relu"):
+
+        print('Decoder input', np.shape(inputs))
+        
+        x = UpSampling1D(2)(inputs)
+        x = self.conv_block(x, num_filters=filters_num, kernel_size=1, padding='valid')
+        
+        x = Add()([x, skip_connection])
+        
+        print('x signals', np.shape(x))
+
+        return x
+
+
+    def signal_decoder_block(self, x, encoder_block1, encoder_block2, encoder_block3):
+
+        decoder = self.decoder_block(x, encoder_block3, 256, kernel_size=4)
+        decoder = self.decoder_block(decoder, encoder_block2, 128, kernel_size=4)
+        decoder = self.decoder_block(decoder, encoder_block1, 64, kernel_size=4)
+
+        # decoder = Dropout(0.1)(decoder)
+
+        #x = self.conv_block(decoder, num_filters=64, kernel_size=2, padding='valid', activation='relu')
+
+        x = UpSampling1D(2)(decoder)
+
+        print(np.shape(x))
+
+        signal_decoded = self.conv_block(x[:, :, 0:32], num_filters=1, kernel_size=1, padding='valid', activation='relu')
+        mask_decoded = self.conv_block(x[:, :, 32::], num_filters=1, kernel_size=1, padding='valid', activation='relu')
+
+        x = keras.ops.concatenate([signal_decoded, mask_decoded], 2)
+                    
+        decode_signal = Activation('relu')(x)
+            
+        return decode_signal
+
+    def linknet(self): 
+        inputs = Input(batch_shape=self.input_shape)
+
+        aug_inputs = CustomDataAugmentation(
+            num_components=15, 
+            amplitude=0.2, 
+            fs=500
+        )(inputs)
+        
+        # Encoder
+        encoder_block1 = self.encoder_block(aug_inputs, num_filters=64)
+        print('Encoder Block 1', np.shape(encoder_block1))
+        encoder_block1 = Dropout(0.2)(encoder_block1)
+
+        encoder_block2 = self.encoder_block(encoder_block1, num_filters=128)
+        print('Encoder Block 2', np.shape(encoder_block2))
+        encoder_block2 = Dropout(0.2)(encoder_block2)
+
+        encoder_block3 = self.encoder_block(encoder_block2, num_filters=256)
+        print('Encoder Block 3', np.shape(encoder_block3))
+        encoder_block3 = Dropout(0.2)(encoder_block3)
+
+        encoder_block4 = self.encoder_block(encoder_block3, num_filters=512)
+        print('Encoder Block 4', np.shape(encoder_block4))
+        encoder_block4 = Dropout(0.2)(encoder_block4)
+   
+        outputs = self.signal_decoder_block(encoder_block4, encoder_block1, encoder_block2, encoder_block3)
+
+        print('Output form', np.shape(outputs))
+
+        self.model = tf.keras.Model(inputs=inputs, outputs=outputs, name='linknet')
+        
+        #self.model.load_weights('/home/julia/Documents/research/backbone/backbone-b2-dataset-FIXED.weights.h5', skip_mismatch=True)
+        
+        return
+
+    def fit_and_evaluate(self):
+        
+        self.linknet()
+        
+        self.model.compile(
+            optimizer=tf.keras.optimizers.Adam(learning_rate=self.init_lr), 
+            loss=Loss(self.w_signal, self.w_signal, self.w_combined).loss, # 
+            metrics=[
+                tf.keras.metrics.RootMeanSquaredError(name='rmse'), 
+                'mean_squared_error', 
+                Metric.mse_signal, 
+                Metric.mse_mask
+            ]
+        )
+
+        history = self.model.fit(
+                self.training_data, 
+                self.ground_truth, 
+                epochs=self.total_epochs, 
+                batch_size=self.batch_size,
+                # validation_data=(self.testing_data, self.ground_truth_testing),
+                shuffle=True, 
+                callbacks=[
+                    lr_scheduler
+                ],
+            )
+        
+        if self.testing_data is None:
+            return history, [], []
+        else:
+            test = self.model.evaluate(self.testing_data, self.ground_truth_testing)
+            
+            start = time.time()
+
+            prediction = self.model.predict(self.testing_data)
+
+            end = time.time()
+
+            print(f'Predict duration for {np.shape(self.testing_data)} is {end-start} seconds ')
+            
+            return history, test, prediction
+    
+    def save(self, path_dir):
+        
+        self.model.save(path_dir)
+        

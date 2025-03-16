@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from datetime import datetime
 
 from data_load.data_loader import DataLoader
-from models.ae_proposed_rev0_upsampling import ProposedAE
+from models.ae_proposed_upsampling import ProposedAE
 
 #%% To run other experiments please change this below
 
@@ -58,7 +58,7 @@ model = ProposedAE(
 model.linknet()
 
 #%%
-model.model.load_weights('/home/julia/Documents/research/sprint_1/rev0_upsampling_weights/weights.h5')
+model.model.load_weights('/home/julia/Documents/research/sprint_1/4blocks_interpolation/weights.h5')
 
 #%%
 
@@ -80,6 +80,20 @@ training_data, _ = data_loader.data_load(0)
 
 #%%
 
+from time import time
+
+start_time = time()
+
 model.model.predict(training_data[0])
 
+end_time = time()
+
+len_file = 5 # minutes
+
+total_time_per_min_ecg = (end_time - start_time) / len_file / TOTAL_FILES
+
+print(f'Time per subject per minute {total_time_per_min_ecg}')
+
 #%%
+
+model.model.summary()

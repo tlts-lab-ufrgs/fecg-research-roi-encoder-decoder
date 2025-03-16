@@ -27,10 +27,10 @@ from data_load.data_loader import DataLoader
 
 
 RESULTS_PATH = "/home/julia/Documents/research/sprint_1/results/ablation_extended/"
-DATA_PATH =  "/home/julia/Documents/research/datasets/abdominal-and-direct-fetal-ecg-database-1.0.0/"
-# DATA_PATH = "/home/julia/Documents/research/datasets/b2-records/B2_Labour_dataset/"
+# DATA_PATH =  "/home/julia/Documents/research/datasets/abdominal-and-direct-fetal-ecg-database-1.0.0/"
+DATA_PATH = "/home/julia/Documents/research/datasets/b2-records/B2_Labour_dataset/"
 
-ABLATION_TEST = '2025-02-11-MASK_gaussian-DECODER_BY_contranspose-200Hz-ABCD-LR_0.0001'
+ABLATION_TEST = "2024-08-15-MASK_gaussian-DECODER_BY_convtranspose-ED_rev0-B2-500hz-LR_0.0001"
 
 # 2024-08-12-MASK_gaussian-DECODER_BY_convtransp-ED_rev0-500hz-B2-3CH-DA_complete_half-SCH-LR_0.0001
 # '2024-08-15-MASK_gaussian-DECODER_BY_convtranspose-ED_rev0-B2-500hz-LR_0.0001'
@@ -52,11 +52,11 @@ LIMIT = int(300000 / RESAMPLING_FREQUENCY_RATIO)# - LEN_BATCH
 
 TEST_FILE = 0
 
-TYPE_OF_FILE = 'edf'
+TYPE_OF_FILE = 'txt'
 
 type_of_mask = 'gaussian'
 
-NUMBER_OF_FILES = 5
+NUMBER_OF_FILES = 12
 
 #%%
 
@@ -192,70 +192,70 @@ for i in results_dir:
         
         # if prediction_index in [int(i / 512) for i in false_positive] and test_file == 0:
            
-        if prediction_index in [
-            0,11,20,30,40,42,50,60,70,75,76,80,81,85,90,100,150,250,270,300,421 
-        ]: 
-            fig, (ax, axAECG) = plt.subplots(2,1)
+        # if prediction_index in [
+        #     0,11,20,30,40,42,50,60,70,75,76,80,81,85,90,100,150,250,270,300,421 
+        # ]: 
+        #     fig, (ax, axAECG) = plt.subplots(2,1)
 
-            mascara = np.where(prediction_data['mask'] == 0, np.nan, prediction_data['mask'])
-            verdade = np.where(testing_data[test_file]['signal'][prediction_index, :, 1] == 0, np.nan, testing_data[test_file]['signal'][prediction_index, :, 1])
+        #     mascara = np.where(prediction_data['mask'] == 0, np.nan, prediction_data['mask'])
+        #     verdade = np.where(testing_data[test_file]['signal'][prediction_index, :, 1] == 0, np.nan, testing_data[test_file]['signal'][prediction_index, :, 1])
 
-            # time = np.linspace(0,0.5,256)
-            entropy_mask_predicted = entropy(prediction_data['mask'])
-            entropy_gt = entropy(pk = verdade, qk=mascara, nan_policy='omit')
+        #     time = np.linspace(0,0.5,256)
+        #     entropy_mask_predicted = entropy(prediction_data['mask'])
+        #     entropy_gt = entropy(pk = verdade, qk=mascara, nan_policy='omit')
             
-            # ax.set_title('')
-            ax.set_title(f'W mask {w_mask}, W signal {w_signal} - {prediction_index} - {test_file} - {entropy_gt}')
+        #     ax.set_title('')
+        #     ax.set_title(f'W mask {w_mask}, W signal {w_signal} - {prediction_index} - {test_file} - {entropy_gt}')
             
-            axAECG.plot(
-                testing_data[test_file]['aecg'][prediction_index, :, 0], 
-                label='Ground truth signal', 
-            )
+        #     axAECG.plot(
+        #         testing_data[test_file]['aecg'][prediction_index, :, 0], 
+        #         label='Ground truth signal', 
+        #     )
  
-            ax.plot(
-                testing_data[test_file]['signal'][prediction_index, :, 0], 
-                label='Ground truth signal', 
-                )
+        #     ax.plot(
+        #         testing_data[test_file]['signal'][prediction_index, :, 0], 
+        #         label='Ground truth signal', 
+        #         )
             
             
-            ax.plot(prediction_data['signal'], label='Predicted Signal')
+        #     ax.plot(prediction_data['signal'], label='Predicted Signal')
             
-            ax1 = ax.twinx()
+        #     ax1 = ax.twinx()
             
-            ax1.plot(
-                testing_data[test_file]['signal'][prediction_index, :, 1], 
-                label='Ground truth RoI', 
-                color='green'
-                )
-            ax1.plot(prediction_data['mask'], label='Predicted RoI', color='purple')
+        #     ax1.plot(
+        #         testing_data[test_file]['signal'][prediction_index, :, 1], 
+        #         label='Ground truth RoI', 
+        #         color='green'
+        #         )
+        #     ax1.plot(prediction_data['mask'], label='Predicted RoI', color='purple')
         
             
-            ax.set_xlabel('Time steps')
-            ax.set_ylabel('fECG normalized')
-            ax1.set_ylabel('RoI signal')
+        #     ax.set_xlabel('Time steps')
+        #     ax.set_ylabel('fECG normalized')
+        #     ax1.set_ylabel('RoI signal')
             
-            # Shrink current axis's height by 10% on the bottom
-            box = ax.get_position()
-            ax.set_position([box.x0, box.y0 + box.height * 0.1,
-                            box.width, box.height * 0.9])
+        #     Shrink current axis's height by 10% on the bottom
+        #     box = ax.get_position()
+        #     ax.set_position([box.x0, box.y0 + box.height * 0.1,
+        #                     box.width, box.height * 0.9])
 
-            # Put a legend below current axis
-            ax.legend(loc='upper center', bbox_to_anchor=(0.1, -0.15),
-                    fancybox=True, shadow=True, ncol=2)
+        #     Put a legend below current axis
+        #     ax.legend(loc='upper center', bbox_to_anchor=(0.1, -0.15),
+        #             fancybox=True, shadow=True, ncol=2)
             
-            ax1.legend(loc='upper center', bbox_to_anchor=(0.9, -0.15),
-                    fancybox=True, shadow=True, ncol=2)
+        #     ax1.legend(loc='upper center', bbox_to_anchor=(0.9, -0.15),
+        #             fancybox=True, shadow=True, ncol=2)
             
             
             
-            ax.grid()
+        #     ax.grid()
 
 
             
             # ax.plot(testing_data[test_file]['roi_signal'][prediction_index], label='fECG')
             # ax.plot(prediction_data['combined'], label='Model Signal')
             
-            ax.legend()
+            # ax.legend()
        
     this_row.append(mse_signal / len(result_files))
     this_row.append(mse_mask / len(result_files))
@@ -320,81 +320,114 @@ print(mean_confidence_interval(
     metrics_dataframe['r2_combined'].values, 'R2 RoI'
 ))
 #%%
-# #%% plot single results
+#%% plot single results
 
-# plt.rcParams.update({
-#     "text.usetex": True,
-#     "font.family": "serif"
-# })
+plt.rcParams.update({
+    "text.usetex": True,
+    "font.family": "serif"
+})
 
-# test_subject = 2 # 2-270
+test_subject = 2 # 2-270
 
-# EXP_TO_PLT = f"{ABLATION_TEST}-W_MASK_0.3-W_SIG_0.1-LEFT_{test_subject}"
+subject_name = "r12"
 
-# index = 270 # 30 76 20
+index = 105 # 30 76 20
 
-# file_to_plot = RESULTS_PATH + EXP_TO_PLT + "/" + EXP_TO_PLT + f"-prediction_{index}.csv"
-
-# prediction_data = pd.read_csv(file_to_plot, names=['signal', 'mask'])
-# prediction_data['binary_mask'] = prediction_data['mask'].where(prediction_data['mask'] == 0, 1)
-
-
-# prediction_data['combined'] = prediction_data['signal'] * prediction_data['binary_mask']
-# prediction_data['roi_signal'] = prediction_data['signal'] * prediction_data['mask'] #testing_data[test_file]['binary_true_mask'][prediction_index]
-
-
-# fig, ax = plt.subplots(figsize=(8,3))
-            
-# #ax.set_title('')
-# #ax.set_title(f'W mask {w_mask}, W signal {w_signal} - {prediction_index} - {test_file}')
-
-
-# time_steps = np.arange(0,256) * (1 / SAMPLING_FREQ) * 1000
-
-# # #ax.set_title('')
-# # #ax.set_title(f'W mask {w_mask}, W signal {w_signal} - {prediction_index} - {test_file}')
-
-# ax.set_title('RoINet Lite')
-# ax.plot(
-#     testing_data[test_subject]['signal'][index, :, 0], 
-#     label='$\mathbf{s}$', 
-#     )
-
-
-# ax.plot(prediction_data['signal'], label='$\mathbf{\\bar{s}}$')
-
-# ax1 = ax.twinx()
-
-# ax1.plot(
-#     testing_data[test_subject]['signal'][index, :, 1], 
-#     label='$\mathbf{m}$', 
-#     color='green'
-#     )
-# ax1.plot(prediction_data['mask'], label='$\mathbf{\\bar{m}}$', color='purple')
+information = [
+    {
+        "ablation": "2024-08-16-MASK_gaussian-DECODER_BY_upsampling-ED_rev0-B2-500hz-LR_0.0001", 
+        "title": "5-block Interpolation Layer", 
+        "model": "5BINT", 
+        "subject": subject_name
+    }, 
+    {
+        "ablation": "2025-03-06-3B-4B-MASK_gaussian-DECODER_BY_transpose-LR_0.0001", 
+        "title": "3-block Transpose Convolution", 
+        "model": "3BCNN", 
+        "subject": subject_name
+    }, 
+    {
+        "ablation": "2025-03-06-3B-O ANTERIOR-ERA-4B-MASK_gaussian-DECODER_BY_upsampling-LR_0.0001", 
+        "title": "3-block Interpolation Layer", 
+        "model": "3BINT", 
+        "subject": subject_name
+    }, 
+        {
+        "ablation": "2025-03-06-3B-MASK_gaussian-DECODER_BY_upsampling-LR_0.0001", 
+        "title": "4-block Interpolation Layer", 
+        "model": "4BINT", 
+        "subject": subject_name
+    }
+]
 
 
-# ax.set_xlabel('Time steps', fontsize='large')
-# ax.set_ylabel('fECG normalized',  fontsize='large')
-# ax1.set_ylabel('RoI signal', fontsize='large')
+for info in information:
 
-# #Shrink current axis's height by 10% on the bottom
-# box = ax.get_position()
-# ax.set_position([box.x0, box.y0 + box.height * 0.1,
-#                 box.width, box.height * 0.9])
-
-# #Put a legend below current axis
-# ax.legend(loc='upper center', bbox_to_anchor=(0.3, -0.20),
-#         fancybox=True, shadow=True, ncol=2)
-
-# ax1.legend(loc='upper center', bbox_to_anchor=(0.7, -0.20),
-#         fancybox=True, shadow=True, ncol=2)
+    EXP_TO_PLT = f"{info['ablation']}-W_MASK_0.3-W_SIG_0.1-LEFT_{test_subject}"
 
 
+    file_to_plot = RESULTS_PATH + EXP_TO_PLT + "/" + EXP_TO_PLT + f"-prediction_{index}.csv"
 
-# ax.grid()
+    prediction_data = pd.read_csv(file_to_plot, names=['signal', 'mask'])
+    prediction_data['binary_mask'] = prediction_data['mask'].where(prediction_data['mask'] == 0, 1)
 
 
-# fig.savefig(f'r06-prediction_index-{index}-b2_dataset-model_rev1.pdf', bbox_inches='tight')
+    prediction_data['combined'] = prediction_data['signal'] * prediction_data['binary_mask']
+    prediction_data['roi_signal'] = prediction_data['signal'] * prediction_data['mask'] #testing_data[test_file]['binary_true_mask'][prediction_index]
+
+
+    fig, ax = plt.subplots(figsize=(8,3))
+
+    #ax.set_title('')
+    #ax.set_title(f'W mask {w_mask}, W signal {w_signal} - {prediction_index} - {test_file}')
+
+
+    time_steps = np.arange(0,256) * (1 / SAMPLING_FREQ) * 1000
+
+    # #ax.set_title('')
+    # #ax.set_title(f'W mask {w_mask}, W signal {w_signal} - {prediction_index} - {test_file}')
+
+    ax.set_title(info['title'])
+    ax.plot(
+        testing_data[test_subject]['signal'][index, :, 0], 
+        label='$\mathbf{s}$', 
+        )
+
+
+    ax.plot(prediction_data['signal'], label='$\mathbf{\\bar{s}}$')
+
+    ax1 = ax.twinx()
+
+    ax1.plot(
+        testing_data[test_subject]['signal'][index, :, 1], 
+        label='$\mathbf{m}$', 
+        color='green'
+        )
+    ax1.plot(prediction_data['mask'], label='$\mathbf{\\bar{m}}$', color='purple')
+
+
+    ax.set_xlabel('Time steps', fontsize='large')
+    ax.set_ylabel('fECG normalized',  fontsize='large')
+    ax1.set_ylabel('RoI signal', fontsize='large')
+
+    #Shrink current axis's height by 10% on the bottom
+    box = ax.get_position()
+    ax.set_position([box.x0, box.y0 + box.height * 0.1,
+                    box.width, box.height * 0.9])
+
+    #Put a legend below current axis
+    ax.legend(loc='upper center', bbox_to_anchor=(0.3, -0.20),
+            fancybox=True, shadow=True, ncol=2)
+
+    ax1.legend(loc='upper center', bbox_to_anchor=(0.7, -0.20),
+            fancybox=True, shadow=True, ncol=2)
+
+
+
+    ax.grid()
+
+
+    fig.savefig(f'{info["subject"]}-prediction_index-{index}-b2_dataset-model_{info["model"]}.pdf', bbox_inches='tight')
 
 #%%
 # # %% compare the mse results for different roi masks
